@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Main window permissions","local":true,"windows":["main"],"permissions":["core:default","core:event:default","dialog:default","dialog:allow-open","dialog:allow-save","dialog:allow-message","dialog:allow-ask","opener:default","opener:allow-reveal-item-in-dir","opener:allow-open-path"]}}

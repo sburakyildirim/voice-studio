@@ -1,0 +1,7 @@
+We found the old map behind the wall, and it showed a path to the river.
+
+"We found the old map behind the wall, and it showed a path to the river."
+
+[We found the old map behind the wall, and it showed a path to the river.]
+
+{We found the old map behind the wall, and it showed a path to the river.}

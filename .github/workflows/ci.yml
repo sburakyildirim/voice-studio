@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle_target: x86_64-pc-windows-msvc
+            extra_targets: ""
+          - name: macOS universal .dmg (built + tested on Apple Silicon)
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundle_target: universal-apple-darwin
+            extra_targets: x86_64-apple-darwin
+          - name: macOS Intel (tests only)
+            os: macos-13
+            target: x86_64-apple-darwin
+            bundle_target: ""
+            extra_targets: ""
+          - name: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundle_target: x86_64-unknown-linux-gnu
+            extra_targets: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}${{ matrix.extra_targets && format(',{0}', matrix.extra_targets) || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type-check UI
+        run: npm run typecheck
+
+      - name: Unit tests (core)
+        run: cargo test -p vs-core --target ${{ matrix.target }}
+
+      - name: Build CLI
+        run: cargo build -p vs-cli --release --target ${{ matrix.target }}
+
+      - name: Build desktop app + installers
+        if: matrix.bundle_target != ''
+        run: npx tauri build --target ${{ matrix.bundle_target }}
+
+      - name: Check universal binary contains both architectures
+        if: matrix.bundle_target == 'universal-apple-darwin'
+        run: lipo -info "target/universal-apple-darwin/release/bundle/macos/Voice Studio.app/Contents/MacOS/voice-studio"
+
+      - name: Report sizes
+        if: matrix.bundle_target != ''
+        shell: bash
+        run: |
+          find target/${{ matrix.bundle_target }}/release/bundle -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \) -exec ls -l {} \;
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.bundle_target != ''
+        with:
+          name: voice-studio-${{ matrix.bundle_target }}
+          path: |
+            target/${{ matrix.bundle_target }}/release/bundle/**/*.exe
+            target/${{ matrix.bundle_target }}/release/bundle/**/*.msi
+            target/${{ matrix.bundle_target }}/release/bundle/**/*.dmg
+            target/${{ matrix.bundle_target }}/release/bundle/**/*.AppImage
+            target/${{ matrix.bundle_target }}/release/bundle/**/*.deb
+          if-no-files-found: error
+
+  e2e-kokoro:
+    # Downloads Kokoro (~370 MB, cached) and renders real audio on a CPU-only runner.
+    name: E2E Kokoro (${{ matrix.os }})
+    needs: test-and-build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14, macos-13, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vs-home/models
+          key: vs-models-${{ runner.os }}-${{ hashFiles('catalog/packages.json') }}
+      - name: Install Kokoro packages (resumable, SHA-256 verified)
+        shell: bash
+        env:
+          VOICE_STUDIO_HOME: ${{ runner.temp }}/vs-home
+        run: |
+          ORT=$(cargo run -q -p vs-cli --release -- packages | grep -v 'n/a' | grep -o 'onnxruntime-[a-z0-9-]*' | grep -v directml | head -1)
+          cargo run -q -p vs-cli --release -- install kokoro-82m-fp32 kokoro-voices-en misaki-lexicon-en "$ORT"
+      - name: Render 60 s narration + e2e tests
+        shell: bash
+        env:
+          VOICE_STUDIO_HOME: ${{ runner.temp }}/vs-home
+        run: |
+          cargo run -q -p vs-cli --release -- say --file examples/scripts/benchmark_60s.txt --device cpu
+          cargo run -q -p vs-cli --release -- bench --device cpu
+          cargo test -p vs-core --release --test e2e -- --ignored --test-threads=1

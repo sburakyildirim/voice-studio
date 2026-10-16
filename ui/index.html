@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Studio</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="logo" aria-hidden="true"></span><span>Voice Studio</span></div>
+      <div class="seg" role="radiogroup" aria-label="Interface mode">
+        <button id="mode-simple" role="radio" aria-checked="true" class="on">Simple</button>
+        <button id="mode-advanced" role="radio" aria-checked="false">Advanced</button>
+      </div>
+      <div class="spacer"></div>
+      <div id="engine-chip" class="chip" title="Loaded models (none are loaded until you press MAKE)">Idle · no models loaded</div>
+      <button id="btn-options" class="ghost" aria-label="Options (Ctrl+,)">⚙ Options</button>
+    </header>
+
+    <main class="layout">
+      <section class="left">
+        <div class="card script-card">
+          <div class="legend" role="toolbar" aria-label="Emotion markup legend — click to wrap the selected text">
+            <span class="legend-title">Markup</span>
+            <button class="lg lg-excited" data-tag="excited" title="Excited / high-energy (Ctrl+1)"><code>"text"</code> Excited</button>
+            <button class="lg lg-calm" data-tag="calm" title="Calm / restrained (Ctrl+2)"><code>[text]</code> Calm</button>
+            <button class="lg lg-mystery" data-tag="mystery" title="Mystery / suspense (Ctrl+3)"><code>{text}</code> Mystery</button>
+            <button class="lg lg-emph" data-tag="emphasis" title="Emphasis (Ctrl+4)"><code>*text*</code> Emphasis</button>
+            <button class="lg lg-pause" data-tag="short" title="Short pause (Ctrl+5)"><code>--</code> Short pause</button>
+            <button class="lg lg-pause" data-tag="long" title="Long pause (Ctrl+6)"><code>---</code> Long pause</button>
+            <span class="lg-static">Untagged = Neutral</span>
+          </div>
+          <div class="editor-wrap">
+            <pre id="hl" class="editor hl" aria-hidden="true"></pre>
+            <textarea id="script" class="editor" spellcheck="true" aria-label="Script editor"
+              placeholder='Paste or write your narration. Example:&#10;"Stop scrolling!" -- Most people get this wrong. [Here is the fix.] {But nobody tells you this...} *Temperature matters.*'></textarea>
+          </div>
+          <div class="editor-foot">
+            <span id="stats">0 words</span>
+            <span id="warnings" class="warn-link" role="button" tabindex="0" hidden></span>
+            <span class="spacer"></span>
+            <button id="btn-open-script" class="link">Open script…</button>
+            <button id="btn-example" class="link">Insert example</button>
+          </div>
+        </div>
+
+        <div class="card controls">
+          <div class="row">
+            <label class="field">
+              <span>Engine</span>
+              <select id="engine"></select>
+            </label>
+            <label class="field grow" id="voice-field">
+              <span id="voice-label">Voice</span>
+              <select id="voice"></select>
+            </label>
+          </div>
+          <div class="row toggles">
+            <label class="toggle"><input type="checkbox" id="t-emotion" checked aria-label="Emotion Control" /><span class="sw"></span>Emotion Control</label>
+            <label class="toggle"><input type="checkbox" id="t-clone" aria-label="Voice Clone" /><span class="sw"></span>Voice Clone</label>
+            <label class="toggle"><input type="checkbox" id="t-batch" aria-label="Batch Mode" /><span class="sw"></span>Batch Mode</label>
+            <div class="seg small" id="clone-mode" role="radiogroup" aria-label="Clone mode" hidden>
+              <button data-mode="voice_only" class="on" role="radio" aria-checked="true" title="Reference = speaker identity; your markup controls delivery">Voice Only</button>
+              <button data-mode="voice_style" role="radio" aria-checked="false" title="Also follow the reference's energy and cadence (markup intensity off)">Voice + Style</button>
+            </div>
+          </div>
+          <div id="caps" class="caps" aria-live="polite"></div>
+
+          <div id="make-area">
+            <button id="btn-make" class="make" title="Render (Ctrl+Enter)">MAKE</button>
+            <div class="progress-wrap" id="progress-wrap" hidden>
+              <div class="progress"><div id="progress-bar"></div></div>
+              <div class="progress-row"><span id="progress-text">…</span><button id="btn-cancel" class="danger small" title="Cancel (Esc)">Cancel</button></div>
+            </div>
+          </div>
+
+          <div id="batch-area" hidden>
+            <div class="row">
+              <button id="q-add-current" class="primary">Add current script</button>
+              <button id="q-add-files">Add script files…</button>
+              <span class="hint">Separate several scripts in one file or editor with a line containing <code>===</code>; an optional first line <code># Title</code> names it.</span>
+            </div>
+            <div class="row">
+              <button id="q-start" class="make small-make">▶ Start queue</button>
+              <button id="q-pause">Pause after current</button>
+              <button id="q-cancel" class="danger">Cancel running</button>
+              <button id="q-retry">Retry failed</button>
+              <button id="q-clear">Clear finished</button>
+              <span id="q-summary" class="hint"></span>
+            </div>
+            <div class="queue" id="queue" role="list"></div>
+          </div>
+        </div>
+
+        <div class="card advanced" id="advanced" hidden>
+          <h3>Advanced</h3>
+          <div class="grid4">
+            <label class="field"><span>Short pause <b id="v-ps"></b></span><input type="range" id="a-ps" min="100" max="1500" step="10" /></label>
+            <label class="field"><span>Long pause <b id="v-pl"></b></span><input type="range" id="a-pl" min="300" max="3000" step="10" /></label>
+            <label class="field"><span>Paragraph pause <b id="v-pp"></b></span><input type="range" id="a-pp" min="200" max="2500" step="10" /></label>
+            <label class="field"><span>Sentence gap <b id="v-pg"></b></span><input type="range" id="a-pg" min="0" max="800" step="10" /></label>
+            <label class="field"><span>Speaking rate (Kokoro) <b id="v-sp"></b></span><input type="range" id="a-sp" min="0.7" max="1.4" step="0.01" value="1" /></label>
+            <label class="field"><span>Loudness target (LUFS)</span><input type="number" id="a-lufs" min="-30" max="-9" step="0.5" /></label>
+            <label class="field"><span>Seed (Chatterbox)</span><input type="number" id="a-seed" min="0" step="1" /></label>
+            <label class="field"><span>Title</span><input type="text" id="a-title" placeholder="auto from script" /></label>
+          </div>
+          <div class="row"><button id="btn-analyze">Inspect segments</button><span class="hint">Shows exactly how the script is split and which controls are genuine or approximated.</span></div>
+          <div id="inspector" class="inspector"></div>
+        </div>
+      </section>
+
+      <aside class="right">
+        <div class="player" role="region" aria-label="Output player">
+          <div class="lcd">
+            <canvas id="viz" width="120" height="38" aria-hidden="true"></canvas>
+            <div class="lcd-main">
+              <div class="lcd-time" id="lcd-time">00:00</div>
+              <div class="lcd-title"><span id="lcd-title">VOICE STUDIO — NO TRACK</span></div>
+              <div class="lcd-info"><span id="lcd-info">24 kHz · MONO</span><span id="lcd-state">STOP</span></div>
+            </div>
+          </div>
+          <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek" />
+          <div class="transport">
+            <button id="p-prev" title="Previous" aria-label="Previous">⏮</button>
+            <button id="p-play" title="Play/Pause (Space)" aria-label="Play or pause">▶</button>
+            <button id="p-stop" title="Stop" aria-label="Stop">⏹</button>
+            <button id="p-next" title="Next" aria-label="Next">⏭</button>
+            <button id="p-replay" title="Replay from start" aria-label="Replay">↺</button>
+            <input type="range" id="vol" min="0" max="1" step="0.01" value="0.9" aria-label="Volume" />
+          </div>
+          <div class="pl-tools">
+            <input type="search" id="pl-search" placeholder="Search renders…" aria-label="Search renders" />
+            <button id="pl-refresh" title="Refresh" aria-label="Refresh">⟳</button>
+          </div>
+          <div class="playlist" id="playlist" role="listbox" tabindex="0" aria-label="Rendered outputs"></div>
+          <div class="pl-actions">
+            <button id="pl-rename" title="Rename (F2)">Rename</button>
+            <button id="pl-reveal" title="Show in folder">Reveal</button>
+            <button id="pl-export" title="Export WAV/MP3">Export…</button>
+            <button id="pl-info" title="Project details">Details</button>
+            <button id="pl-delete" class="danger" title="Delete (Del)">Delete</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="options" class="modal" aria-label="Options">
+      <div class="modal-head">
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="models" class="on">Models</button>
+          <button role="tab" data-tab="voices">Voices</button>
+          <button role="tab" data-tab="settings">Settings</button>
+          <button role="tab" data-tab="diag">Diagnostics</button>
+          <button role="tab" data-tab="about">About</button>
+        </div>
+        <button class="ghost" id="opt-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <section data-panel="models" class="panel on"></section>
+        <section data-panel="voices" class="panel"></section>
+        <section data-panel="settings" class="panel"></section>
+        <section data-panel="diag" class="panel"></section>
+        <section data-panel="about" class="panel"></section>
+      </div>
+    </dialog>
+
+    <dialog id="details" class="modal narrow" aria-label="Project details">
+      <div class="modal-head"><h3 id="details-title">Details</h3><button class="ghost" id="details-close" aria-label="Close">✕</button></div>
+      <div class="modal-body" id="details-body"></div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

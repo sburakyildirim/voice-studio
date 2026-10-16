@@ -1,0 +1,14 @@
+[package]
+name = "vs-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "vscli"
+path = "src/main.rs"
+
+[dependencies]
+vs-core = { path = "../vs-core" }
+anyhow.workspace = true
+serde_json.workspace = true
+chrono.workspace = true

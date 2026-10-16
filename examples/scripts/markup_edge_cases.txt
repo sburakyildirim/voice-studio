@@ -1,0 +1,7 @@
+Literal quotes: she said \"hello\" and left. Typographic quotes are literal too: “really?”
+Escapes: 5 \* 3 equals 15, and brackets \[like this\] are spoken text.
+Nested: "I can't *believe* it [quietly now] okay!"
+Unbalanced: "this opener is never closed
+Unicode: Café, naïve, résumé — and an emoji 🎉 that is not spoken.
+Numbers: In 1999 it cost $3.50, about 26% more than the 2nd one at 10:30.
+Pauses: wait--for it---now.
