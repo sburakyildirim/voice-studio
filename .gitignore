@@ -3,3 +3,4 @@
 /ui/dist
 *.part
 .DS_Store
+/dist
