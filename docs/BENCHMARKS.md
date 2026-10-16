@@ -31,6 +31,24 @@ Kokoro first-load cost (ONNX session + lexicon) ≈ 0.5–1.5 s on CPU. Chatterb
 (worker start, torch import, 3.2 GB weights) ≈ 15–40 s; it is paid once per session and the
 worker stays loaded until the idle timeout.
 
+## Other platforms (GitHub Actions runners, Kokoro fp32, CPU)
+
+Measured by the CI job `E2E Kokoro` (`vscli bench --device cpu`, 50.9 s narration) on shared
+cloud VMs — slower than typical desktops, shown to confirm the engine runs natively on each:
+
+| Runner | CPU | Threads used | Warm RTF | Cold total | Peak RAM |
+|---|---|---|---|---|---|
+| macos-14 | Apple M1 (virtual, 3 cores, 7.5 GB) | 3 | **0.43** | 24.1 s | 2.29 GB |
+| macos-15-intel | Intel Core i7-8700B (4 cores) | 4 | 0.76 | 39.0 s | 1.18 GB |
+| windows-latest | Intel Xeon 6973P-C (VM) | 1² | 0.54 | 39.1 s | 1.15 GB |
+| ubuntu-22.04 | AMD EPYC 9V74 (VM) | 1² | 0.68 | 35.8 s | 2.35 GB |
+
+² These VMs report one physical core; the thread heuristic now uses at least half the logical
+CPUs, so later runs use more threads. A physical Apple Silicon Mac (8+ cores) should be
+considerably faster than the 3-core virtual M1. On all four runners the 7 end-to-end tests
+(real synthesis, cache, cancel, batch resume, corrupt input, missing models) passed; the
+universal `.dmg` was built on macos-14.
+
 ## Idle and start-up
 
 | Measurement | Result |
@@ -117,9 +135,10 @@ Test totals: **75 unit tests** and **7 end-to-end tests** with real models pass 
 
 ## Not measured / not verified
 
-* macOS (Intel, Apple Silicon) and Linux: builds and tests are configured in CI but were not
-  run by the author. The macOS code type-checks for both Mac targets; CoreML and MPS paths are
-  untested. Chatterbox is intentionally unavailable on Intel Macs (no PyTorch 2.6 wheels).
+* macOS and Linux were tested only on GitHub Actions VMs (table above), not on a physical Mac
+  or Linux desktop. The GUI (.app from the .dmg) has not been opened on a Mac by the author.
+  CoreML and Chatterbox-on-MPS are untested. Chatterbox is intentionally unavailable on Intel
+  Macs (no PyTorch 2.6 wheels).
 * Low-power hardware (old Intel, base Apple Silicon): not tested.
 * Naturalness (MOS) — no listening study was run, so the catalog does not score it.
 * App cold start to first paint was not instrumented (the engine load times above are).

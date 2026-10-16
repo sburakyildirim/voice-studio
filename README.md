@@ -51,9 +51,9 @@ Full numbers and method: [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
   memory; app process ≈ 32–41 MB RSS plus the system WebView.
 * 75 unit tests + 7 end-to-end tests with real models pass (`cargo test`).
 
-Built and tested **only on Windows x64** so far. macOS (universal .dmg) and Linux x64
-builds are configured in CI ([.github/workflows](.github/workflows)) but have **not** been run
-on those machines by the author — treat them as unverified until CI artifacts are tested.
+Built and fully tested on Windows x64; macOS (Apple Silicon + Intel) and Linux x64 pass
+build + Kokoro end-to-end tests on GitHub Actions VMs ([.github/workflows](.github/workflows)); the
+desktop app has not yet been opened on a physical Mac or Linux machine.
 
 ## Install & first run
 
@@ -84,8 +84,9 @@ updating the app does not touch models, voices, settings or projects.
 * The app is ad-hoc signed, not notarized (that needs a paid Apple Developer ID). On first
   launch, right-click the app → **Open**, or run
   `xattr -dr com.apple.quarantine "/Applications/Voice Studio.app"`.
-* The macOS code paths are type-checked on Windows for both `aarch64-apple-darwin` and
-  `x86_64-apple-darwin`, but have **not yet been run on a real Mac** — first CI run will tell.
+* Verified on GitHub's macOS VMs: the universal `.dmg` builds; on Apple Silicon (M1, 3 vCPU)
+  and Intel (i7-8700B) Kokoro renders a 51 s narration at RTF 0.43 / 0.76 and all end-to-end
+  tests pass. Not yet opened on a physical Mac; Chatterbox on MPS is untested.
 
 ## Build from source
 

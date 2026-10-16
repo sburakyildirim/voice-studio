@@ -84,9 +84,12 @@ unsafe fn libloading_load(p: &Path) -> *mut core::ffi::c_void {
 }
 
 /// Physical cores (capped): extra SMT threads and efficiency cores rarely help this model.
+/// Some VMs report a single physical core while exposing several vCPUs, so never go below
+/// half the logical CPUs.
 fn default_threads() -> usize {
-    let phys = sysinfo::System::physical_core_count().unwrap_or(4);
-    phys.clamp(1, 8)
+    let logical = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    let phys = sysinfo::System::physical_core_count().unwrap_or(logical);
+    phys.max(logical / 2).clamp(1, 8)
 }
 
 pub struct KokoroPaths {
