@@ -120,7 +120,12 @@ fn missing_models_reported_precisely() {
     let mut o = kokoro_opts();
     o.engine = "chatterbox".into();
     let e = studio.render("Hello there.", &o, &Cancel::new(), &mut |_| {}).unwrap_err();
-    assert!(format!("{e:#}").contains("chatterbox-en"));
+    let m = format!("{e:#}");
+    match vs_core::pyenv::chatterbox_unsupported_reason() {
+        // Intel Macs: the engine is reported as unsupported rather than missing.
+        Some(reason) => assert!(m.contains(reason), "{m}"),
+        None => assert!(m.contains("chatterbox-en"), "{m}"),
+    }
 }
 
 #[test]
