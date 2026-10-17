@@ -101,8 +101,15 @@ export function highlight(src: string): string {
 
 /** Wrap the current selection of a textarea with markup. */
 export function wrapSelection(ta: HTMLTextAreaElement, tag: string) {
-  const s = ta.selectionStart;
-  const e = ta.selectionEnd;
+  let s = ta.selectionStart;
+  let e = ta.selectionEnd;
+  // Tags placed inside a word split it across segments ("compoun[d growth"), so grow a
+  // selection that starts or ends mid-word to the whole word. Pauses insert at the caret.
+  if (tag !== "short" && tag !== "long" && s !== e) {
+    const isWord = (c: string | undefined) => !!c && /[\p{L}\p{N}'’]/u.test(c);
+    while (s > 0 && isWord(ta.value[s - 1]) && isWord(ta.value[s])) s--;
+    while (e < ta.value.length && isWord(ta.value[e - 1]) && isWord(ta.value[e])) e++;
+  }
   const v = ta.value;
   const sel = v.slice(s, e);
   let ins: string;

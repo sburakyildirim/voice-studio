@@ -366,8 +366,10 @@ impl Studio {
         progress(ProgressEvent { stage: "load".into(), current: 0, total: segments.len(), message: format!("Loading {engine_id}…"), fraction: 0.0 });
         let mut logs: Vec<String> = Vec::new();
         let engine = {
+            let n_segments = segments.len();
             let mut log = |m: String| {
                 tracing::info!("{m}");
+                progress(ProgressEvent { stage: "load".into(), current: 0, total: n_segments, message: m.clone(), fraction: 0.0 });
                 logs.push(m);
             };
             self.engine(engine_id, &mut log)?

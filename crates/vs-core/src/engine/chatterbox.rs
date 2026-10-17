@@ -178,7 +178,12 @@ impl Worker {
         }
     }
 
-    fn call(&mut self, mut req: Value, timeout: Duration, cancel: &Cancel) -> Result<Value> {
+    fn call(&mut self, req: Value, timeout: Duration, cancel: &Cancel) -> Result<Value> {
+        self.call_with_status(req, timeout, cancel, &mut |_| {})
+    }
+
+    /// Like `call`, forwarding `{"event":"status"}` lines (e.g. load stages) to `on_status`.
+    fn call_with_status(&mut self, mut req: Value, timeout: Duration, cancel: &Cancel, on_status: &mut dyn FnMut(String)) -> Result<Value> {
         let id = self.next_id;
         self.next_id += 1;
         req["id"] = json!(id);
@@ -187,6 +192,12 @@ impl Worker {
         loop {
             let line = self.wait_line(timeout, cancel)?;
             let Ok(v) = serde_json::from_str::<Value>(&line) else { continue };
+            if v["event"] == json!("status") {
+                if let Some(m) = v["message"].as_str() {
+                    on_status(m.to_string());
+                }
+                continue;
+            }
             if v["id"] != json!(id) {
                 continue;
             }
@@ -259,11 +270,11 @@ impl Engine for Chatterbox {
         }
         log("Starting isolated Chatterbox worker…".into());
         let mut w = Worker::spawn(&self.paths)?;
-        log("Loading Chatterbox weights (first load can take 10–40 s)…".into());
-        let r = w.call(
+        let r = w.call_with_status(
             json!({"cmd": "load", "ckpt_dir": self.paths.ckpt_dir, "device": device}),
             Duration::from_secs(600),
             &Cancel::new(),
+            log,
         )?;
         self.device = match r["device"].as_str().unwrap_or("cpu") {
             "cuda" => format!("gpu:cuda ({})", r["gpu_name"].as_str().unwrap_or("NVIDIA")),

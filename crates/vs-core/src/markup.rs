@@ -382,6 +382,29 @@ pub fn parse(src: &str) -> Parsed {
                     // character separated two words ("a]b" -> "a b" is wrong; keep "ab").
                     continue;
                 };
+                // An emotion tag inside a word ("compoun[d growth]") splits the word across
+                // two synthesis segments, which sounds broken: warn so it can be fixed.
+                if *tag != Tag::Emphasis {
+                    let before = src[..*off].chars().next_back();
+                    let after = src[*end..].chars().next();
+                    if before.is_some_and(char::is_alphanumeric) && after.is_some_and(char::is_alphanumeric) {
+                        let word_start = src[..*off]
+                            .char_indices()
+                            .rev()
+                            .find(|(_, c)| !c.is_alphanumeric())
+                            .map(|(i, c)| i + c.len_utf8())
+                            .unwrap_or(0);
+                        let word_end = src[*end..].find(|c: char| !c.is_alphanumeric()).map(|i| i + *end).unwrap_or(src.len());
+                        warnings.push(Warning {
+                            offset: *off,
+                            message: format!(
+                                "'{}' is inside the word \"{}\"; the word will be split and sound broken. Move the tag to the word's edge.",
+                                src[*off..*end].trim(),
+                                format!("{}{}", &src[word_start..*off], &src[*end..word_end])
+                            ),
+                        });
+                    }
+                }
                 flush(&mut spans, &mut buf, buf_start, buf_end, style(&stack), &mut warnings, None);
                 if is_open {
                     stack.push(*tag);
@@ -723,6 +746,17 @@ mod tests {
     fn emotion_change_without_space_separates_words() {
         let p = parse("Hello.[Calm down.] then\"wow\"ok");
         assert_eq!(spoken_words(&p), vec!["Hello.", "Calm", "down.", "then", "wow", "ok"]);
+    }
+
+    #[test]
+    fn emotion_tag_inside_word_warns() {
+        let p = parse("That is compoun[d growth comes in. The]re is more.");
+        let w: Vec<_> = p.warnings.iter().map(|w| w.message.clone()).collect();
+        assert_eq!(w.len(), 2, "{w:?}");
+        assert!(w[0].contains("compound"), "{w:?}");
+        assert!(w[1].contains("There"), "{w:?}");
+        // Emphasis inside a word is allowed and silent.
+        assert!(parse("un*believ*able").warnings.is_empty());
     }
 
     #[test]

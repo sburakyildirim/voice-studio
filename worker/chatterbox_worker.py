@@ -90,9 +90,12 @@ def main():
                       "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
                       "mps": bool(getattr(torch.backends, "mps", None) and torch.backends.mps.is_available())})
             elif cmd == "load":
+                send({"event": "status", "message": "Starting Python and importing PyTorch (first start after boot can take a minute)…"})
                 import torch
+                send({"event": "status", "message": "Importing Chatterbox…"})
                 from chatterbox.tts import ChatterboxTTS
                 device = pick_device(req.get("device", "auto"))
+                send({"event": "status", "message": f"Loading Chatterbox weights on {device.upper()}…"})
                 t0 = time.time()
                 try:
                     model = ChatterboxTTS.from_local(req["ckpt_dir"], device)

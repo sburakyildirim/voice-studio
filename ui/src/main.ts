@@ -330,12 +330,32 @@ async function make() {
   }
 }
 
+// Elapsed-time ticker so long model loads never look frozen (runs only while a job runs).
+let progressText = "";
+let jobStarted = 0;
+let ticker: number | undefined;
+function renderProgressText() {
+  const secs = Math.floor((Date.now() - jobStarted) / 1000);
+  $("progress-text").textContent = `${progressText} · ${fmtTime(secs)}`;
+}
+
 function showProgress(on: boolean, text = "", frac = 0) {
   $("progress-wrap").hidden = !on;
   $<HTMLButtonElement>("btn-make").disabled = on;
   $("btn-make").textContent = on ? "MAKING…" : "MAKE";
-  $("progress-text").textContent = text;
   $("progress-bar").style.width = `${Math.round(frac * 100)}%`;
+  progressText = text;
+  if (on) {
+    if (!ticker) {
+      jobStarted = Date.now();
+      ticker = window.setInterval(renderProgressText, 1000);
+    }
+    renderProgressText();
+  } else {
+    clearInterval(ticker);
+    ticker = undefined;
+    $("progress-text").textContent = "";
+  }
 }
 
 $("btn-make").onclick = make;
