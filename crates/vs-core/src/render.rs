@@ -137,8 +137,9 @@ pub fn plan(parsed: &markup::Parsed, settings: &Settings, max_chars: usize) -> V
                 }
                 sentences.last_mut().unwrap().push(Run { text: p.clone(), emphasis: r.emphasis });
             }
-            // A run that ends a sentence starts a new one for the next run.
-            if r.text.trim_end().ends_with(['.', '!', '?', '…']) {
+            // A run that ends a sentence (punctuation followed by whitespace) starts a new
+            // one for the next run. Without whitespace (`end.*more*`) it is the same word.
+            if r.text.ends_with(char::is_whitespace) && r.text.trim_end().ends_with(['.', '!', '?', '…']) {
                 sentences.push(vec![]);
             }
         }
@@ -171,7 +172,9 @@ pub fn plan(parsed: &markup::Parsed, settings: &Settings, max_chars: usize) -> V
             let mut cur_len = 0;
             for r in p {
                 for word in r.text.split_inclusive(' ') {
-                    if cur_len + word.len() > max_chars && cur_len > 0 {
+                    // Only cut at a word boundary (never inside `un*believ*able`).
+                    let at_boundary = cur.last().map(|x: &Run| x.text.ends_with(char::is_whitespace)).unwrap_or(false);
+                    if cur_len + word.len() > max_chars && cur_len > 0 && at_boundary {
                         let ends_clause = cur.last().map(|x: &Run| x.text.trim_end().ends_with([',', ';', ':'])).unwrap_or(false);
                         if ends_clause || cur_len + word.len() > max_chars * 3 / 2 {
                             final_segments.push(std::mem::take(&mut cur));
@@ -650,5 +653,43 @@ New paragraph here."#;
     fn titles() {
         assert_eq!(auto_title(r#""Wow!" this is [a test] of the title system ok"#), "Wow! this is a test of the");
         assert_eq!(auto_title("--- --"), "Untitled");
+    }
+}
+
+#[cfg(test)]
+mod fuzz_tests {
+    use super::*;
+
+    fn words(segs: &[PlannedSegment]) -> Vec<String> {
+        segs.iter().flat_map(|s| s.text().split_whitespace().map(String::from).collect::<Vec<_>>()).collect()
+    }
+
+    #[test]
+    fn plan_preserves_words_fuzz() {
+        let s = Settings::default();
+        let pieces = [
+            "Hello", "world.", "Wait!", "Really?", "ok", "end...", "\"wow\"", "[calm.]", "{dark}", "*hit*", "--", "---",
+            "\n\n", "\n", "un*believ*able", "a.b", "3.5", "$4", "Mr.", "e.g.", "“quoted.”", "(aside.)", "x!?", "*", "\"", "[", "}",
+            "Done.\"", "yes.)", "  ", "word,", "…", "Hi.Hi", "*emph.*", "[a. b.]", "\"A! B?\"",
+        ];
+        let mut seed: u64 = 0x2545F4914F6CDD1D;
+        for case in 0..20000 {
+            let mut script = String::new();
+            let n = 1 + (case % 25);
+            for _ in 0..n {
+                seed ^= seed << 13;
+                seed ^= seed >> 7;
+                seed ^= seed << 17;
+                script.push_str(pieces[(seed % pieces.len() as u64) as usize]);
+                if seed & 0x100 != 0 {
+                    script.push(' ');
+                }
+            }
+            let p = markup::parse(&script);
+            for max in [20usize, 60, 220] {
+                let segs = plan(&p, &s, max);
+                assert_eq!(words(&segs), markup::spoken_words(&p), "max={max} script={script:?}");
+            }
+        }
     }
 }

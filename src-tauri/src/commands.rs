@@ -369,14 +369,16 @@ fn engine_status_blocking(s: Settings, loaded: Vec<(String, String)>, busy: Opti
 }
 
 #[tauri::command]
-pub fn make(st: State<AppState>, script: String, options: RenderOptions) -> CmdResult<String> {
+pub fn make(st: State<AppState>, script: String, options: RenderOptions, id: Option<String>) -> CmdResult<String> {
     if st.shared.lock().unwrap().busy.is_some() {
         return Err("A job is already running (one job at a time).".into());
     }
     if script.trim().is_empty() {
         return Err("The script is empty.".into());
     }
-    let id = format!("make-{}", chrono::Utc::now().timestamp_millis());
+    // The UI supplies the id before invoking, so it recognises the job's events even when
+    // the job fails before this command returns.
+    let id = id.unwrap_or_else(|| format!("make-{}", chrono::Utc::now().timestamp_millis()));
     st.shared.lock().unwrap().busy = Some(id.clone());
     st.tx.lock().unwrap().send(WorkerMsg::Make { id: id.clone(), script, options }).map_err(err)?;
     Ok(id)

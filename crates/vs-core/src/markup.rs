@@ -478,13 +478,25 @@ fn collapse_ws(s: &str) -> String {
 /// All spoken words of the script in order, ignoring markup. Used by tests and by the
 /// render pipeline to assert that no words were lost.
 pub fn spoken_words(parsed: &Parsed) -> Vec<String> {
-    // Spans are concatenated before splitting so that markup inside a word
-    // (`un*believ*able`) still yields one word; pauses always separate words.
+    // Spans are concatenated before splitting so that emphasis inside a word
+    // (`un*believ*able`) still yields one word. Pauses and emotion changes always separate
+    // words: they start a new synthesis segment, so `Hello.[Calm down.]` is two words
+    // "Hello." + "Calm", exactly as it will be spoken.
     let mut all = String::new();
+    let mut prev_emotion: Option<Emotion> = None;
     for s in &parsed.spans {
         match s {
-            Span::Text { text, .. } => all.push_str(text),
-            Span::Pause { .. } => all.push(' '),
+            Span::Text { text, emotion, .. } => {
+                if prev_emotion.is_some_and(|e| e != *emotion) {
+                    all.push(' ');
+                }
+                all.push_str(text);
+                prev_emotion = Some(*emotion);
+            }
+            Span::Pause { .. } => {
+                all.push(' ');
+                prev_emotion = None;
+            }
         }
     }
     all.split_whitespace().map(|w| w.to_string()).collect()
@@ -705,6 +717,12 @@ mod tests {
             let p = parse(&s);
             assert_eq!(spoken_words(&p).join(" "), words.join(" "), "input: {s:?}");
         }
+    }
+
+    #[test]
+    fn emotion_change_without_space_separates_words() {
+        let p = parse("Hello.[Calm down.] then\"wow\"ok");
+        assert_eq!(spoken_words(&p), vec!["Hello.", "Calm", "down.", "then", "wow", "ok"]);
     }
 
     #[test]

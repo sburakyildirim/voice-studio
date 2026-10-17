@@ -314,10 +314,18 @@ function preflight(): boolean {
 
 async function make() {
   if (currentJob || !preflight()) return;
+  // Set the id before invoking: a job that fails instantly emits its event before the
+  // invoke promise resolves, and must still clear the MAKING state.
+  const id = `make-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  currentJob = id;
+  showProgress(true, "Starting…", 0);
   try {
-    currentJob = await api.make(ta.value, options());
-    showProgress(true, "Starting…", 0);
+    await api.make(ta.value, options(), id);
   } catch (e) {
+    if (currentJob === id) {
+      currentJob = null;
+      showProgress(false);
+    }
     toast(String(e), "error");
   }
 }
