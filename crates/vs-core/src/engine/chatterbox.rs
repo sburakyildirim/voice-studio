@@ -162,6 +162,9 @@ impl Worker {
             // stable writable place so it survives and is reused across runs.
             .env("NUMBA_CACHE_DIR", launch.cwd.join("numba-cache"))
             .env("VS_PARENT_PID", std::process::id().to_string())
+            // torch.compile needs Triton, which has no official Windows build; run eagerly.
+            .env("TORCHDYNAMO_DISABLE", if cfg!(windows) { "1" } else { "0" })
+            .env("NO_TORCH_COMPILE", if cfg!(windows) { "1" } else { "0" })
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

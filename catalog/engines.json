@@ -770,6 +770,78 @@
         "The voice comes from the seed (Advanced › Seed); keep the seed to keep the voice.",
         "No emotion input: markup only changes pause length. Loaded in float16 (about 4 GB of GPU memory)."
       ]
+    },
+    {
+      "id": "kyutai",
+      "catalog_id": "kyutai-tts-1.6b",
+      "name": "Kyutai TTS 1.6B (styled voices · English/French)",
+      "adapter": "kyutai",
+      "license": "CC-BY-4.0 (model and voices); moshi MIT/Apache-2.0",
+      "commercial": "Allowed with attribution (CC-BY-4.0).",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "moshi==0.2.13"
+        ],
+        "probe": "from moshi.models.tts import TTSModel"
+      },
+      "weights": {
+        "repo": "kyutai/tts-1.6b-en_fr",
+        "revision": "f65439609986c392cb12df63938abcc550c3fb15",
+        "files": [
+          "config.json",
+          "dsm_tts_1e68beda@240.safetensors",
+          "tokenizer-e351c8d8-checkpoint125.safetensors",
+          "tokenizer_spm_8k_en_fr_audio.model"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "kyutai/tts-voices",
+          "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+          "files": [
+            "expresso/ex04-ex01_narration_001_channel1_605s.wav.1e68beda@240.safetensors",
+            "expresso/ex04-ex02_happy_001_channel1_118s.wav.1e68beda@240.safetensors",
+            "expresso/ex04-ex02_calm_002_channel1_480s.wav.1e68beda@240.safetensors",
+            "expresso/ex04-ex03_whisper_001_channel1_198s.wav.1e68beda@240.safetensors",
+            "expresso/ex03-ex02_narration_001_channel1_674s.wav.1e68beda@240.safetensors",
+            "expresso/ex03-ex01_happy_001_channel1_334s.wav.1e68beda@240.safetensors",
+            "expresso/ex03-ex01_calm_001_channel1_1143s.wav.1e68beda@240.safetensors",
+            "expresso/ex03-ex01_awe_001_channel1_1323s.wav.1e68beda@240.safetensors"
+          ],
+          "subdir": "voices"
+        }
+      ],
+      "voices": [
+        {
+          "id": "ex04",
+          "name": "Expresso ex04",
+          "detail": "styled per emotion: narration / happy / calm / whisper"
+        },
+        {
+          "id": "ex03",
+          "name": "Expresso ex03",
+          "detail": "styled per emotion: narration / happy / calm / awe"
+        }
+      ],
+      "languages": [],
+      "cloning": false,
+      "emotion": "genuine",
+      "emphasis": "unsupported",
+      "max_chars": 300,
+      "gpu": true,
+      "approx_download_mb": 4100,
+      "notes": [
+        "Each emotion uses the same speaker's recording in the matching style (happy, calm, whisper/awe) — genuine style conditioning.",
+        "English and French.",
+        "No user voice cloning: Kyutai has not released the voice encoder."
+      ]
     }
   ]
 }
