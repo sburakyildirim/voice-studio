@@ -842,6 +842,79 @@
         "English and French.",
         "No user voice cloning: Kyutai has not released the voice encoder."
       ]
+    },
+    {
+      "id": "spark",
+      "catalog_id": "spark-tts",
+      "name": "Spark-TTS 0.5B (cloning or voice design · EN/ZH · non-commercial)",
+      "adapter": "spark",
+      "license": "Code Apache-2.0; weights CC-BY-NC-SA-4.0",
+      "commercial": "Non-commercial use only (weights).",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "einops==0.8.1",
+          "einx==0.3.0",
+          "omegaconf==2.3.0",
+          "safetensors",
+          "soundfile",
+          "soxr",
+          "transformers==4.46.2",
+          "tqdm"
+        ],
+        "probe": "from spark_cli.SparkTTS import SparkTTS",
+        "post_install": "import io, os, site, zipfile, urllib.request, shutil\nsp = [p for p in site.getsitepackages() if p.endswith('site-packages')][0]\nz = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen('https://github.com/SparkAudio/Spark-TTS/archive/2f1ea9082400547242641f5271b6f941c9f439d1.zip').read()))\nfor n in z.namelist():\n    rel = n.split('/', 1)[1] if '/' in n else ''\n    if n.endswith('/'):\n        continue\n    if rel.startswith('sparktts/'):\n        dst = os.path.join(sp, *rel.split('/'))\n    elif rel == 'cli/SparkTTS.py':\n        dst = os.path.join(sp, 'spark_cli', 'SparkTTS.py')\n    else:\n        continue\n    os.makedirs(os.path.dirname(dst), exist_ok=True)\n    open(dst, 'wb').write(z.read(n))\nopen(os.path.join(sp, 'spark_cli', '__init__.py'), 'w').close()\n"
+      },
+      "weights": {
+        "repo": "SparkAudio/Spark-TTS-0.5B",
+        "revision": "642071559bfc6346c2359d19dcb6be3f9dd8a05d",
+        "files": [
+          "config.yaml",
+          "BiCodec/config.yaml",
+          "BiCodec/model.safetensors",
+          "LLM/added_tokens.json",
+          "LLM/config.json",
+          "LLM/merges.txt",
+          "LLM/model.safetensors",
+          "LLM/special_tokens_map.json",
+          "LLM/tokenizer.json",
+          "LLM/tokenizer_config.json",
+          "LLM/vocab.json",
+          "wav2vec2-large-xlsr-53/config.json",
+          "wav2vec2-large-xlsr-53/preprocessor_config.json",
+          "wav2vec2-large-xlsr-53/pytorch_model.bin"
+        ]
+      },
+      "voices": [
+        {
+          "id": "female",
+          "name": "Designed female voice",
+          "detail": "voice creation (pitch/speed follow markup)"
+        },
+        {
+          "id": "male",
+          "name": "Designed male voice",
+          "detail": "voice creation (pitch/speed follow markup)"
+        }
+      ],
+      "languages": [],
+      "cloning": true,
+      "emotion": "approximate",
+      "emphasis": "unsupported",
+      "max_chars": 200,
+      "gpu": true,
+      "approx_download_mb": 3800,
+      "notes": [
+        "Without Voice Clone, a voice is designed from gender + pitch level + speed level; excited / calm / mystery change those levels (approximated).",
+        "With Voice Clone it copies the reference voice; markup then only changes pauses.",
+        "English and Chinese. Weights are non-commercial (CC-BY-NC-SA-4.0)."
+      ]
     }
   ]
 }
