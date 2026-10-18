@@ -306,6 +306,112 @@
         "No emotion input: markup changes speed and pause length (approximated).",
         "Weights are licensed for non-commercial use only (CC-BY-NC-4.0)."
       ]
+    },
+    {
+      "id": "parler",
+      "catalog_id": "parler-tts",
+      "name": "Parler-TTS mini v1.1 (described emotions · English)",
+      "adapter": "parler",
+      "license": "Apache-2.0",
+      "commercial": "Allowed under Apache-2.0.",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "parler_tts @ https://github.com/huggingface/parler-tts/archive/d108732cd57788ec86bc857d99a6cabd66663d68.zip",
+          "transformers==4.46.1",
+          "sentencepiece",
+          "descript-audio-codec"
+        ],
+        "probe": "from parler_tts import ParlerTTSForConditionalGeneration"
+      },
+      "weights": {
+        "repo": "parler-tts/parler-tts-mini-v1.1",
+        "revision": "fbb2dd281092c5b414ef29cf9d8895f386f1feef",
+        "files": [
+          "config.json",
+          "generation_config.json",
+          "model.safetensors",
+          "preprocessor_config.json",
+          "special_tokens_map.json",
+          "tokenizer.json",
+          "tokenizer.model",
+          "tokenizer_config.json"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "google/flan-t5-large",
+          "revision": "0613663d0d48ea86ba8cb3d7a44f0f65dc596a2a",
+          "files": [
+            "special_tokens_map.json",
+            "spiece.model",
+            "tokenizer.json",
+            "tokenizer_config.json"
+          ],
+          "subdir": "desc_tokenizer"
+        }
+      ],
+      "voices": [
+        {
+          "id": "Jon",
+          "name": "Jon",
+          "detail": "male"
+        },
+        {
+          "id": "Lea",
+          "name": "Lea",
+          "detail": "female"
+        },
+        {
+          "id": "Gary",
+          "name": "Gary",
+          "detail": "male"
+        },
+        {
+          "id": "Jenna",
+          "name": "Jenna",
+          "detail": "female"
+        },
+        {
+          "id": "Mike",
+          "name": "Mike",
+          "detail": "male"
+        },
+        {
+          "id": "Laura",
+          "name": "Laura",
+          "detail": "female"
+        },
+        {
+          "id": "Will",
+          "name": "Will",
+          "detail": "male"
+        },
+        {
+          "id": "Eileen",
+          "name": "Eileen",
+          "detail": "female"
+        }
+      ],
+      "languages": [],
+      "cloning": false,
+      "emotion": "genuine",
+      "emphasis": "unsupported",
+      "max_chars": 220,
+      "gpu": true,
+      "approx_download_mb": 3800,
+      "notes": [
+        "Excited / calm / mystery are written into a text description that the model follows (genuine conditioning; how closely it follows varies).",
+        "Voices are named training speakers; no reference cloning.",
+        "English only."
+      ]
     }
   ]
 }

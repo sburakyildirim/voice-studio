@@ -269,10 +269,9 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
         }
         let py = self.python().to_string_lossy().to_string();
         if let Some(t) = &spec.torch {
-            let mut args = vec![s("pip"), s("install"), s("--python"), py.clone(), format!("torch=={t}")];
-            if spec.torchaudio {
-                args.push(format!("torchaudio=={t}"));
-            }
+            // torchaudio is always pinned to the same release: many audio packages pull it in
+            // and a newer build fails to load against an older torch (WinError 127).
+            let mut args = vec![s("pip"), s("install"), s("--python"), py.clone(), format!("torch=={t}"), format!("torchaudio=={t}")];
             if let Some(idx) = Self::torch_index() {
                 args.push(s("--index-url"));
                 args.push(s(idx));
@@ -285,6 +284,7 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
         if let Some(t) = &spec.torch {
             // Keep the machine-specific torch build that was just installed.
             args.push(format!("torch=={t}"));
+            args.push(format!("torchaudio=={t}"));
             if let Some(idx) = Self::torch_index() {
                 args.push(s("--extra-index-url"));
                 args.push(s(idx));

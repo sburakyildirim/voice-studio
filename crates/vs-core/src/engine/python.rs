@@ -25,6 +25,7 @@ const ADAPTERS: &[(&str, &str)] = &[
     ("piper", include_str!("../../../../worker/adapters/piper.py")),
     ("xtts", include_str!("../../../../worker/adapters/xtts.py")),
     ("f5", include_str!("../../../../worker/adapters/f5.py")),
+    ("parler", include_str!("../../../../worker/adapters/parler.py")),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
