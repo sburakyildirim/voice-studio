@@ -26,6 +26,7 @@ const ADAPTERS: &[(&str, &str)] = &[
     ("xtts", include_str!("../../../../worker/adapters/xtts.py")),
     ("f5", include_str!("../../../../worker/adapters/f5.py")),
     ("parler", include_str!("../../../../worker/adapters/parler.py")),
+    ("zonos", include_str!("../../../../worker/adapters/zonos.py")),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +43,10 @@ pub struct RuntimeSpec {
     pub pip_args: Vec<String>,
     /// Python snippet that must import cleanly for the runtime to count as installed.
     pub probe: String,
+    /// Optional Python snippet run once after the packages are installed (upstream
+    /// packaging fixes); it runs with the venv's interpreter.
+    #[serde(default)]
+    pub post_install: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -293,6 +293,17 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
             }
         }
         run(&args, log)?;
+        if let Some(code) = &spec.post_install {
+            log("Applying post-install fixes…".into());
+            let out = no_window(Command::new(&py).arg("-c").arg(code))
+                .env("PYTHONIOENCODING", "utf-8")
+                .stdin(Stdio::null())
+                .output()
+                .context("run post-install step")?;
+            if !out.status.success() {
+                bail!("{label} post-install step failed: {}", String::from_utf8_lossy(&out.stderr).lines().rev().take(3).collect::<Vec<_>>().join(" | "));
+            }
+        }
         log("Verifying runtime…".into());
         let info = self.probe_generic(&spec.probe, label)?;
         log(format!("Runtime ready: Python {}{}", info.python, if info.torch.is_empty() { String::new() } else { format!(", torch {}, CUDA {}", info.torch, info.cuda) }));

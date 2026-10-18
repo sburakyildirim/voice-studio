@@ -412,6 +412,93 @@
         "Voices are named training speakers; no reference cloning.",
         "English only."
       ]
+    },
+    {
+      "id": "zonos",
+      "catalog_id": "zonos-v0.1",
+      "name": "Zonos v0.1 (emotion vector · cloning · 15 languages)",
+      "adapter": "zonos",
+      "license": "Apache-2.0 (code and weights); DAC MIT; espeak-ng GPL-3.0 (via espeakng-loader)",
+      "commercial": "Allowed under Apache-2.0.",
+      "platforms": [
+        "windows-x86_64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "zonos @ https://github.com/Zyphra/Zonos/archive/bc40d98e1e1ab54fc65c483be127a90e3c7c0645.zip",
+          "espeakng-loader==0.2.4"
+        ],
+        "probe": "import espeakng_loader\nfrom zonos.model import Zonos",
+        "post_install": "import io, os, site, zipfile, urllib.request\nurl = 'https://github.com/Zyphra/Zonos/archive/bc40d98e1e1ab54fc65c483be127a90e3c7c0645.zip'\nz = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(url).read()))\nsp = [p for p in site.getsitepackages() if p.endswith('site-packages')][0]\nfor n in z.namelist():\n    rel = n.split('/', 1)[1] if '/' in n else ''\n    if rel.startswith('zonos/') and rel.endswith('.py'):\n        dst = os.path.join(sp, *rel.split('/'))\n        os.makedirs(os.path.dirname(dst), exist_ok=True)\n        open(dst, 'wb').write(z.read(n))\n"
+      },
+      "weights": {
+        "repo": "Zyphra/Zonos-v0.1-transformer",
+        "revision": "9d8331fc49cb5ba8aad2bb56cafd809c66598f4e",
+        "files": [
+          "config.json",
+          "model.safetensors"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "Zyphra/Zonos-v0.1-speaker-embedding",
+          "revision": "9fe3dbdc3c703a8cf7141b2d0f550f6d55f67260",
+          "files": [
+            "ResNet293_SimAM_ASP_base.pt",
+            "ResNet293_SimAM_ASP_base_LDA-128.pt"
+          ],
+          "subdir": "speaker"
+        },
+        {
+          "repo": "descript/dac_44khz",
+          "revision": "c1bc521685adf9cfe247bc39a5ca58917eda1ac4",
+          "files": [
+            "config.json",
+            "model.safetensors",
+            "preprocessor_config.json"
+          ],
+          "subdir": "dac"
+        }
+      ],
+      "voices": [
+        {
+          "id": "seeded",
+          "name": "Seeded random speaker",
+          "detail": "stable per seed; use Voice Clone for a real voice"
+        }
+      ],
+      "languages": [
+        "en-us",
+        "en-gb",
+        "tr",
+        "de",
+        "fr-fr",
+        "es",
+        "it",
+        "pt",
+        "pt-br",
+        "ja",
+        "cmn",
+        "ko",
+        "ru",
+        "nl",
+        "pl"
+      ],
+      "cloning": true,
+      "emotion": "genuine",
+      "emphasis": "unsupported",
+      "max_chars": 200,
+      "gpu": true,
+      "approx_download_mb": 4100,
+      "notes": [
+        "Excited / calm / mystery drive Zonos' emotion vector (happiness, surprise, fear, …), pitch variation and speaking rate — genuine conditioning.",
+        "Zero-shot cloning from a reference clip; without one a seeded random speaker is used.",
+        "Upstream supports Linux only; on Windows the pure-PyTorch transformer model runs without torch.compile (slower first generation).",
+        "Not available on macOS: the upstream package does not support it."
+      ]
     }
   ]
 }
