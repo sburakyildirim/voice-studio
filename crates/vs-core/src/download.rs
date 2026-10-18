@@ -38,7 +38,8 @@ pub struct Progress {
 fn agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(20)))
-        .timeout_recv_body(Some(Duration::from_secs(60)))
+        // No limit on the whole body (multi-GB files); the response must start in time.
+        .timeout_recv_response(Some(Duration::from_secs(60)))
         .user_agent(concat!("VoiceStudio/", env!("CARGO_PKG_VERSION")))
         .build()
         .into()
@@ -68,7 +69,7 @@ pub fn download(
         match try_download(url, &part, expected_size, cancel, &mut on_progress) {
             Ok(()) => break,
             Err(e) if cancel.is_cancelled() => return Err(e),
-            Err(e) if attempt < 4 => {
+            Err(e) if attempt < 8 => {
                 tracing::warn!("download attempt {attempt} failed: {e:#}; retrying");
                 std::thread::sleep(Duration::from_secs(attempt * 2));
             }

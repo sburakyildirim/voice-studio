@@ -104,6 +104,12 @@ fn split_sentences(text: &str) -> Vec<String> {
 /// one block (emphasis stays inline as runs). Blocks are split into sentences and packed
 /// up to `max_chars`. Every spoken word lands in exactly one segment, in order.
 pub fn plan(parsed: &markup::Parsed, settings: &Settings, max_chars: usize) -> Vec<PlannedSegment> {
+    plan_with(parsed, settings, max_chars, false)
+}
+
+/// `merge_emotions`: for engines with no emotion input, emotion changes do not start a new
+/// segment (short fragments only hurt such models); pauses still split.
+pub fn plan_with(parsed: &markup::Parsed, settings: &Settings, max_chars: usize, merge_emotions: bool) -> Vec<PlannedSegment> {
     struct Block {
         runs: Vec<Run>,
         emotion: Emotion,
@@ -116,12 +122,22 @@ pub fn plan(parsed: &markup::Parsed, settings: &Settings, max_chars: usize) -> V
         match s {
             Span::Text { text, emotion, emphasis, start, end } => {
                 let run = Run { text: text.clone(), emphasis: *emphasis };
+                let emotion = if merge_emotions { Emotion::Neutral } else { *emotion };
                 match blocks.last_mut() {
-                    Some(b) if b.emotion == *emotion && b.pause.is_none() => {
+                    Some(b) if b.emotion == emotion && b.pause.is_none() => {
+                        // Spans that were separate words because of an emotion change keep a
+                        // word boundary when merged.
+                        if merge_emotions {
+                            if let Some(last) = b.runs.last_mut() {
+                                if !last.text.ends_with(char::is_whitespace) && !run.text.starts_with(char::is_whitespace) {
+                                    last.text.push(' ');
+                                }
+                            }
+                        }
                         b.runs.push(run);
                         b.end = *end;
                     }
-                    _ => blocks.push(Block { runs: vec![run], emotion: *emotion, start: *start, end: *end, pause: None }),
+                    _ => blocks.push(Block { runs: vec![run], emotion, start: *start, end: *end, pause: None }),
                 }
             }
             Span::Pause { kind, .. } => {
@@ -384,7 +400,8 @@ impl Studio {
             None => 320,
         };
         let can_clone = is_chatterbox || py_spec.as_ref().is_some_and(|s| s.cloning);
-        let segments = plan(&parsed, &self.settings, max_chars);
+        let merge = py_spec.as_ref().is_some_and(|s| s.emotion == "none");
+        let segments = plan_with(&parsed, &self.settings, max_chars, merge);
         if segments.is_empty() {
             bail!("The script has no speakable text.");
         }
@@ -786,6 +803,11 @@ mod fuzz_tests {
             for max in [20usize, 60, 220] {
                 let segs = plan(&p, &s, max);
                 assert_eq!(words(&segs), markup::spoken_words(&p), "max={max} script={script:?}");
+                // Merged mode must keep every character in order (word boundaries may differ
+                // only where an emotion change separated two words).
+                let merged = plan_with(&p, &s, max, true);
+                let a: String = words(&merged).concat();
+                assert_eq!(a, markup::spoken_words(&p).concat(), "merged max={max} script={script:?}");
             }
         }
     }

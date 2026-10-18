@@ -132,7 +132,7 @@ pub fn parse_script(st: State<AppState>, script: String, engine_id: String, emot
         None if engine_id.starts_with("chatterbox") => 220,
         None => 320,
     };
-    let segs = render::plan(&parsed, &s, max);
+    let segs = render::plan_with(&parsed, &s, max, py_spec.as_ref().is_some_and(|sp| sp.emotion == "none"));
     let mode = clone_mode.unwrap_or_default();
     let preview: Vec<SegmentPreview> = segs
         .iter()

@@ -701,6 +701,75 @@
         "No emotion input and no cloning; markup only changes pause length.",
         "Each generation is limited to ~13 s, so long sentences are split."
       ]
+    },
+    {
+      "id": "dia",
+      "catalog_id": "dia-1.6b",
+      "name": "Dia 1.6B (expressive dialogue · nonverbal cues · English)",
+      "adapter": "dia",
+      "license": "Apache-2.0",
+      "commercial": "Allowed under Apache-2.0.",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "transformers==4.57.6",
+          "accelerate",
+          "soundfile"
+        ],
+        "probe": "from transformers import DiaForConditionalGeneration"
+      },
+      "weights": {
+        "repo": "nari-labs/Dia-1.6B-0626",
+        "revision": "ef2795fcc29c5abe6ffc91fd33808588b49bbc66",
+        "files": [
+          "config.json",
+          "generation_config.json",
+          "model-00001-of-00002.safetensors",
+          "model-00002-of-00002.safetensors",
+          "model.safetensors.index.json",
+          "preprocessor_config.json",
+          "special_tokens_map.json",
+          "tokenizer_config.json",
+          "audio_tokenizer_config.json"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "descript/dac_44khz",
+          "revision": "c1bc521685adf9cfe247bc39a5ca58917eda1ac4",
+          "files": [
+            "config.json",
+            "model.safetensors",
+            "preprocessor_config.json"
+          ],
+          "subdir": "dac"
+        }
+      ],
+      "voices": [
+        {
+          "id": "seeded",
+          "name": "Seeded speaker [S1]",
+          "detail": "the seed picks the voice; change it in Advanced"
+        }
+      ],
+      "languages": [],
+      "cloning": false,
+      "emotion": "none",
+      "emphasis": "unsupported",
+      "max_chars": 220,
+      "gpu": true,
+      "approx_download_mb": 6800,
+      "notes": [
+        "Very expressive English dialogue model; write non-verbal cues in parentheses: (laughs), (sighs), (gasps), (clears throat).",
+        "The voice comes from the seed (Advanced › Seed); keep the seed to keep the voice.",
+        "No emotion input: markup only changes pause length. Loaded in float16 (about 4 GB of GPU memory)."
+      ]
     }
   ]
 }
