@@ -59,6 +59,8 @@ pub struct Settings {
     pub consent_acknowledged: bool,
     /// Optional location of isolated runtimes (default: <data>/runtimes).
     pub runtimes_dir: Option<PathBuf>,
+    /// Last language used with Chatterbox Multilingual.
+    pub last_language: String,
 }
 
 impl Default for Settings {
@@ -88,6 +90,7 @@ impl Default for Settings {
             chatterbox_seed: 1234,
             consent_acknowledged: false,
             runtimes_dir: None,
+            last_language: "en".into(),
         }
     }
 }

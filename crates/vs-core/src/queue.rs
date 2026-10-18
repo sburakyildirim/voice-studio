@@ -184,6 +184,7 @@ mod tests {
             speed: 1.0,
             export_mp3: None,
             bypass_cache: false,
+            language: None,
         }
     }
 

@@ -27,6 +27,7 @@ export interface Settings {
   chatterbox_seed: number;
   consent_acknowledged: boolean;
   runtimes_dir: string | null;
+  last_language: string;
 }
 
 export interface RenderOptions {
@@ -41,6 +42,7 @@ export interface RenderOptions {
   speed: number;
   export_mp3: boolean | null;
   bypass_cache?: boolean;
+  language?: string | null;
 }
 
 export interface Caps {
@@ -68,6 +70,7 @@ export interface EngineStatus {
   busy: string | null;
   batch_running: boolean;
   mp3: boolean;
+  languages: { code: string; name: string }[];
 }
 
 export interface ProjectSummary {

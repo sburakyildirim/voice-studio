@@ -248,6 +248,13 @@
    "title": "Chatterbox (English, 0.5B) weights",
    "kind": "model",
    "engine": "chatterbox",
+   "platforms": [
+    "windows-x86_64",
+    "windows-aarch64",
+    "macos-aarch64",
+    "linux-x86_64",
+    "linux-aarch64"
+   ],
    "license": "MIT",
    "note": "Outputs carry Resemble AI's Perth imperceptible watermark.",
    "files": [
@@ -281,13 +288,130 @@
      "size": 2129653744,
      "dest": "t3_cfg.safetensors"
     }
-   ],
+   ]
+  },
+  {
+   "id": "chatterbox-mtl",
+   "title": "Chatterbox Multilingual (23 languages) weights",
+   "kind": "model",
+   "engine": "chatterbox",
    "platforms": [
     "windows-x86_64",
     "windows-aarch64",
     "macos-aarch64",
     "linux-x86_64",
     "linux-aarch64"
+   ],
+   "license": "MIT",
+   "note": "Uses the same Python runtime as Chatterbox. Output is watermarked (Perth).",
+   "files": [
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/ve.pt",
+     "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1",
+     "size": 5698626,
+     "dest": "ve.pt"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/t3_mtl23ls_v2.safetensors",
+     "sha256": "b1237586127ce98e7800a68e49938eb5092846862aabcb6e17b2fda7889a6c75",
+     "size": 2143989752,
+     "dest": "t3_mtl23ls_v2.safetensors"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/s3gen.pt",
+     "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3",
+     "size": 1057165844,
+     "dest": "s3gen.pt"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/grapheme_mtl_merged_expanded_v1.json",
+     "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf",
+     "size": 69989,
+     "dest": "grapheme_mtl_merged_expanded_v1.json"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/conds.pt",
+     "sha256": "6552d70568833628ba019c6b03459e77fe71ca197d5c560cef9411bee9d87f4e",
+     "size": 107374,
+     "dest": "conds.pt"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/Cangjie5_TC.json",
+     "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c",
+     "size": 1920163,
+     "dest": "Cangjie5_TC.json"
+    }
+   ]
+  },
+  {
+   "id": "chatterbox-turbo",
+   "title": "Chatterbox Turbo (English, 350M, faster) weights",
+   "kind": "model",
+   "engine": "chatterbox",
+   "platforms": [
+    "windows-x86_64",
+    "windows-aarch64",
+    "macos-aarch64",
+    "linux-x86_64",
+    "linux-aarch64"
+   ],
+   "license": "MIT",
+   "note": "Faster; no emotion-intensity control. Paralinguistic tags such as \\[laugh\\] can be written escaped.",
+   "files": [
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/ve.safetensors",
+     "sha256": "f0921cab452fa278bc25cd23ffd59d36f816d7dc5181dd1bef9751a7fb61f63c",
+     "size": 5695784,
+     "dest": "ve.safetensors"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/t3_turbo_v1.safetensors",
+     "sha256": "fcf1f8c1d651bb7e3acd69ee5be269b4ac10c02980b7708213d598bc9f7cdf87",
+     "size": 1915480052,
+     "dest": "t3_turbo_v1.safetensors"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/s3gen_meanflow.safetensors",
+     "sha256": "d65cb687a2ed581ee6cc297e919ffefa63386944f42364ae13b78a594945514f",
+     "size": 1064875036,
+     "dest": "s3gen_meanflow.safetensors"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/conds.pt",
+     "sha256": "b1852099306fd6a7814eb9d0bd10186caba7249596cc23868f78a0eefbfa5033",
+     "size": 169454,
+     "dest": "conds.pt"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/vocab.json",
+     "sha256": "f6bd25a65e4e63ca31360e9fb11c7e4f9a391a78385d640acd814092dd6eee4f",
+     "size": 999186,
+     "dest": "vocab.json"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/merges.txt",
+     "sha256": "1ce1664773c50f3e0cc8842619a93edc4624525b728b188a9e0be33b7726adc5",
+     "size": 456318,
+     "dest": "merges.txt"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/tokenizer_config.json",
+     "sha256": "bca16a2ac1ddbd78b8d6228f0031884cc74b6ea54b967d6f6d2ebae9ccde23e6",
+     "size": 3878,
+     "dest": "tokenizer_config.json"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/special_tokens_map.json",
+     "sha256": "92ba8063bf40aa163eadebbfe0de07c2aebe44cf0d4a9e8726580b0781fd2640",
+     "size": 470,
+     "dest": "special_tokens_map.json"
+    },
+    {
+     "url": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/749d1c1a46eb10492095d68fbcf55691ccf137cd/added_tokens.json",
+     "sha256": "72e4ab6acb0d9309ac3df4b526ae5fd80a2da5bc5ab7bb02d85096a374f69193",
+     "size": 418,
+     "dest": "added_tokens.json"
+    }
    ]
   },
   {

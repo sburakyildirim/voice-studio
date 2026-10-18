@@ -99,6 +99,16 @@ function renderEngineSelect() {
   sel.value = status.engines.some((e) => e.id === cur) ? cur : "kokoro";
 }
 
+function renderLanguageSelect() {
+  const multilingual = engineId() === "chatterbox-mtl";
+  $("language-field").hidden = !multilingual;
+  const sel = $<HTMLSelectElement>("language");
+  if (!sel.options.length && status?.languages) {
+    sel.innerHTML = status.languages.map((l) => `<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join("");
+  }
+  sel.value = settings.last_language || "en";
+}
+
 function renderVoiceSelect() {
   const sel = $<HTMLSelectElement>("voice");
   const label = $("voice-label");
@@ -117,7 +127,7 @@ function renderVoiceSelect() {
     if (kokoroVoices.some((v) => v.id === settings.last_voice)) sel.value = settings.last_voice;
   } else {
     label.textContent = "Voice";
-    sel.innerHTML = `<option value="builtin">Chatterbox built-in voice</option>`;
+    sel.innerHTML = `<option value="builtin">Chatterbox built-in voice${engineId() === "chatterbox-mtl" ? " (English speaker — use Voice Clone for a native voice)" : ""}</option>`;
   }
 }
 
@@ -156,9 +166,14 @@ function renderCaps() {
 $("engine").onchange = () => {
   settings.last_engine = engineId();
   persistSettings();
+  renderLanguageSelect();
   renderVoiceSelect();
   renderCaps();
   scheduleParse();
+};
+$("language").onchange = () => {
+  settings.last_language = $<HTMLSelectElement>("language").value;
+  persistSettings();
 };
 $("voice").onchange = () => {
   const v = $<HTMLSelectElement>("voice").value;
@@ -288,6 +303,7 @@ function options(): RenderOptions {
     seed: advanced ? settings.chatterbox_seed : null,
     speed: Number($<HTMLInputElement>("a-sp").value) || 1,
     export_mp3: null,
+    language: engineId() === "chatterbox-mtl" ? $<HTMLSelectElement>("language").value : null,
   };
 }
 
@@ -520,6 +536,7 @@ async function refreshStatus() {
   profiles = v.profiles;
   kokoroVoices = v.kokoro;
   renderEngineSelect();
+  renderLanguageSelect();
   renderVoiceSelect();
   renderCaps();
   renderChip(status.loaded);

@@ -56,6 +56,19 @@ pk.append({"id": "chatterbox-en", "title": "Chatterbox (English, 0.5B) weights",
            "license": "MIT", "note": "Outputs carry Resemble AI's Perth imperceptible watermark.",
            "files": [hf_file(*CHATTERBOX, n, n, cb[n]) for n in ("tokenizer.json", "conds.pt", "ve.safetensors", "s3gen.safetensors", "t3_cfg.safetensors")]})
 
+CB_PLATFORMS = ["windows-x86_64", "windows-aarch64", "macos-aarch64", "linux-x86_64", "linux-aarch64"]
+mtl = ["ve.pt", "t3_mtl23ls_v2.safetensors", "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json", "conds.pt", "Cangjie5_TC.json"]
+pk.append({"id": "chatterbox-mtl", "title": "Chatterbox Multilingual (23 languages) weights", "kind": "model", "engine": "chatterbox",
+           "platforms": CB_PLATFORMS, "license": "MIT", "note": "Uses the same Python runtime as Chatterbox. Output is watermarked (Perth).",
+           "files": [hf_file(*CHATTERBOX, n, n, cb[n]) for n in mtl]})
+TURBO = ("ResembleAI/chatterbox-turbo", "749d1c1a46eb10492095d68fbcf55691ccf137cd")
+tb = {f['path']: f for f in hf_tree(*TURBO)}
+turbo = ["ve.safetensors", "t3_turbo_v1.safetensors", "s3gen_meanflow.safetensors", "conds.pt", "vocab.json", "merges.txt",
+         "tokenizer_config.json", "special_tokens_map.json", "added_tokens.json"]
+pk.append({"id": "chatterbox-turbo", "title": "Chatterbox Turbo (English, 350M, faster) weights", "kind": "model", "engine": "chatterbox",
+           "platforms": CB_PLATFORMS, "license": "MIT", "note": "Faster; no emotion-intensity control. Paralinguistic tags such as \\[laugh\\] can be written escaped.",
+           "files": [hf_file(*TURBO, n, n, tb[n]) for n in turbo]})
+
 def pypi_wheel(pkg, ver, fname):
     d = json.loads(get(f"https://pypi.org/pypi/{pkg}/{ver}/json"))
     u = next(u for u in d['urls'] if u['filename'] == fname)

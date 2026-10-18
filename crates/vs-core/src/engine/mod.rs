@@ -77,6 +77,8 @@ pub struct SegmentRequest<'a> {
     /// Reference WAV for cloning engines.
     pub reference: Option<&'a std::path::Path>,
     pub seed: u64,
+    /// Language code for multilingual engines (e.g. "tr").
+    pub language: Option<&'a str>,
 }
 
 pub trait Engine: Send {
@@ -98,7 +100,28 @@ pub trait Engine: Send {
 pub fn plan_style(engine: &str, emotion: Emotion, emotion_control: bool, clone_mode: CloneMode) -> StyleParams {
     let emo = if emotion_control { emotion } else { Emotion::Neutral };
     match engine {
-        "chatterbox" => {
+        "chatterbox-turbo" => {
+            // Turbo exposes no emotion or CFG inputs; only pause length follows markup.
+            let pause = match emo {
+                Emotion::Neutral => 1.0,
+                Emotion::Excited => 0.85,
+                Emotion::Calm => 1.15,
+                Emotion::Mystery => 1.5,
+            };
+            StyleParams {
+                emotion: emo,
+                speed: 1.0,
+                gain_db: 0.0,
+                exaggeration: 0.0,
+                cfg_weight: 0.0,
+                temperature: 0.8,
+                pause_scale: pause,
+                terminal_punct: None,
+                emotion_fidelity: if emo == Emotion::Neutral { Fidelity::None } else { Fidelity::Approximate },
+                emphasis_fidelity: Fidelity::Unsupported,
+            }
+        }
+        "chatterbox" | "chatterbox-mtl" => {
             let style_from_ref = clone_mode == CloneMode::VoiceStyle;
             let (ex, cfg, temp, pause, fid) = if style_from_ref {
                 // Reference delivery dominates: neutral intensity, lower CFG so the speech

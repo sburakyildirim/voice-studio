@@ -4,7 +4,7 @@
 use crate::audio::{self, AudioBuf, Piece};
 use crate::catalog::Store;
 use crate::download::Cancel;
-use crate::engine::chatterbox::{Chatterbox, ChatterboxPaths};
+use crate::engine::chatterbox::{Chatterbox, ChatterboxPaths, Variant};
 use crate::engine::kokoro::{Kokoro, KokoroPaths};
 use crate::engine::{plan_style, CloneMode, Engine, Run, SegmentRequest, StyleParams};
 use crate::markup::{self, Emotion, PauseKind, Span};
@@ -37,6 +37,9 @@ pub struct RenderOptions {
     pub speed: f32,
     #[serde(default)]
     pub export_mp3: Option<bool>,
+    /// Language for multilingual engines (ISO 639-1, e.g. "tr").
+    #[serde(default)]
+    pub language: Option<String>,
     /// Synthesize every segment even if cached (benchmarks). Results are still stored.
     #[serde(default)]
     pub bypass_cache: bool,
@@ -71,14 +74,16 @@ fn split_sentences(text: &str) -> Vec<String> {
     let mut i = 0;
     while i < chars.len() {
         cur.push(chars[i]);
-        let end = matches!(chars[i], '.' | '!' | '?' | '…');
+        let end = matches!(chars[i], '.' | '!' | '?' | '…' | '。' | '！' | '？');
         if end {
             // absorb trailing punctuation/quotes
-            while i + 1 < chars.len() && matches!(chars[i + 1], '.' | '!' | '?' | '…' | '"' | '”' | '’' | ')') {
+            while i + 1 < chars.len() && matches!(chars[i + 1], '.' | '!' | '?' | '…' | '"' | '”' | '’' | ')' | '」' | '』') {
                 i += 1;
                 cur.push(chars[i]);
             }
-            if i + 1 >= chars.len() || chars[i + 1].is_whitespace() {
+            // CJK full-width sentence marks end a sentence even without a following space.
+            let cjk = matches!(chars[i], '。' | '！' | '？');
+            if i + 1 >= chars.len() || chars[i + 1].is_whitespace() || cjk {
                 out.push(std::mem::take(&mut cur));
             }
         }
@@ -256,7 +261,7 @@ impl Studio {
         }
         if let Some(c) = &self.chatterbox {
             if c.is_loaded() {
-                v.push(("chatterbox".into(), c.device()));
+                v.push((c.id().into(), c.device()));
             }
         }
         v
@@ -300,9 +305,16 @@ impl Studio {
                 k.load(&device, log)?;
                 Ok(k)
             }
-            "chatterbox" => {
+            id if Variant::from_engine(id).is_some() => {
+                let variant = Variant::from_engine(id).unwrap();
+                // Only one Chatterbox checkpoint is kept in memory (VRAM is limited).
+                if self.chatterbox.as_ref().is_some_and(|c| c.variant() != variant) {
+                    if let Some(mut c) = self.chatterbox.take() {
+                        c.unload();
+                    }
+                }
                 if self.chatterbox.is_none() {
-                    let paths = ChatterboxPaths::resolve(&store, &self.settings.runtimes_dir(), self.settings.cache_dir().join("tmp"))?;
+                    let paths = ChatterboxPaths::resolve(&store, &self.settings.runtimes_dir(), self.settings.cache_dir().join("tmp"), variant)?;
                     self.chatterbox = Some(Chatterbox::new(paths));
                 }
                 let c = self.chatterbox.as_mut().unwrap();
@@ -330,21 +342,25 @@ impl Studio {
         let mon = sysmon::PeakMonitor::start(self.chatterbox_worker_pid());
         let parsed = markup::parse(script);
         let engine_id = opts.engine.as_str();
-        let max_chars = if engine_id == "chatterbox" { 220 } else { 320 };
+        let is_chatterbox = Variant::from_engine(engine_id).is_some();
+        let max_chars = if is_chatterbox { 220 } else { 320 };
         let segments = plan(&parsed, &self.settings, max_chars);
         if segments.is_empty() {
             bail!("The script has no speakable text.");
         }
         // Safety net: never lose, duplicate or reorder words.
-        let planned_words: Vec<String> = segments.iter().flat_map(|s| s.text().split_whitespace().map(String::from).collect::<Vec<_>>()).collect();
-        let parsed_words = markup::spoken_words(&parsed);
-        if planned_words != parsed_words {
+        // Compared without whitespace so languages without spaces (Chinese, Japanese) that
+        // are split at sentence punctuation still verify; any lost, duplicated or reordered
+        // character fails the check.
+        let planned: String = segments.iter().flat_map(|s| s.text().chars().collect::<Vec<_>>()).filter(|c| !c.is_whitespace()).collect();
+        let spoken: String = markup::spoken_words(&parsed).concat();
+        if planned != spoken {
             bail!("internal error: segment plan does not preserve the script's words");
         }
 
         // Voice / reference.
         let (reference, profile) = if opts.voice_clone {
-            if engine_id != "chatterbox" {
+            if !is_chatterbox {
                 bail!("The selected engine ({engine_id}) does not support voice cloning.");
             }
             let pid = opts.profile_id.as_deref().context("Voice Clone is on but no voice profile is selected.")?;
@@ -356,7 +372,21 @@ impl Studio {
         };
         let ref_sha = profile.as_ref().map(|p| p.sha256.clone()).unwrap_or_default();
         let seed = opts.seed.unwrap_or(self.settings.chatterbox_seed);
-        let voice = if engine_id == "kokoro" { opts.voice.clone() } else if profile.is_some() { "clone".into() } else { "builtin".into() };
+        let language: Option<String> = if engine_id == "chatterbox-mtl" {
+            let l = opts.language.clone().unwrap_or_else(|| "en".into()).to_lowercase();
+            if !crate::engine::chatterbox::MTL_LANGUAGES.iter().any(|(c, _)| *c == l) {
+                bail!("Unsupported language '{l}' for Chatterbox Multilingual.");
+            }
+            Some(l)
+        } else {
+            None
+        };
+        let base_voice = if engine_id == "kokoro" { opts.voice.clone() } else if profile.is_some() { "clone".to_string() } else { "builtin".to_string() };
+        // The language is part of the voice key so cached segments never mix languages.
+        let voice = match &language {
+            Some(l) => format!("{base_voice}@{l}"),
+            None => base_voice,
+        };
 
         let cache_dir = self.settings.cache_dir().join("segments");
         let id = uuid::Uuid::new_v4().simple().to_string();
@@ -406,7 +436,14 @@ impl Studio {
             let (mut buf, cached) = match cached_audio {
                 Some(b) => (b, true),
                 _ => {
-                    let req = SegmentRequest { runs: &seg.runs, style: &style, voice: &voice, reference: reference.as_deref(), seed };
+                    let req = SegmentRequest {
+                        runs: &seg.runs,
+                        style: &style,
+                        voice: &voice,
+                        reference: reference.as_deref(),
+                        seed,
+                        language: language.as_deref(),
+                    };
                     let b = match engine.synthesize(&req, cancel) {
                         Ok(b) => b,
                         Err(e) => {

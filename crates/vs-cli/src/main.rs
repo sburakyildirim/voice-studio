@@ -25,7 +25,7 @@ USAGE:
   vscli voices                           List Kokoro voices
   vscli profile add <name> <audio> [--start S] [--end S] --consent
   vscli profiles                         List voice profiles
-  vscli say [--engine kokoro|chatterbox] [--voice ID] [--clone PROFILE] [--mode voice-only|voice-style]
+  vscli say [--engine kokoro|chatterbox|chatterbox-mtl|chatterbox-turbo] [--language tr] [--voice ID] [--clone PROFILE] [--mode voice-only|voice-style]
             [--no-emotion] [--title T] [--mp3] [--device auto|cpu|gpu] [--variant kokoro-82m-fp32|kokoro-82m-q8]
             (--text TEXT | --file FILE)
   vscli batch <file> [same options as say]   Scripts separated by lines containing ===
@@ -201,6 +201,7 @@ fn run() -> Result<()> {
                 _ => CloneMode::VoiceOnly,
             };
             let no_emotion = args.flag("--no-emotion");
+            let language = args.opt("--language");
             let mp3 = args.flag("--mp3");
             let title = args.opt("--title").unwrap_or_default();
             let text = if let Some(t) = args.opt("--text") {
@@ -226,6 +227,7 @@ fn run() -> Result<()> {
                 speed: 1.0,
                 export_mp3: Some(mp3),
                 bypass_cache: cmd == "bench",
+                language: language.clone(),
             };
             let mut studio = Studio::new(settings.clone());
             let cancel = Cancel::new();

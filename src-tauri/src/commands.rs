@@ -126,7 +126,7 @@ pub struct SegmentPreview {
 pub fn parse_script(st: State<AppState>, script: String, engine_id: String, emotion_control: bool, clone_mode: Option<CloneMode>) -> Value {
     let s = settings(&st);
     let parsed = markup::parse(&script);
-    let max = if engine_id == "chatterbox" { 220 } else { 320 };
+    let max = if engine_id.starts_with("chatterbox") { 220 } else { 320 };
     let segs = render::plan(&parsed, &s, max);
     let mode = clone_mode.unwrap_or_default();
     let preview: Vec<SegmentPreview> = segs
@@ -349,23 +349,35 @@ pub async fn engine_status(st: State<'_, AppState>) -> CmdResult<Value> {
 fn engine_status_blocking(s: Settings, loaded: Vec<(String, String)>, busy: Option<String>, batch_running: bool) -> Value {
     let store = Store::new(&s.models_dir);
     let kok = engine::kokoro::KokoroPaths::resolve(&store, &s.kokoro_variant);
-    let cb = engine::chatterbox::ChatterboxPaths::resolve(&store, &s.runtimes_dir(), s.cache_dir().join("tmp"));
+    use engine::chatterbox::{ChatterboxPaths, Variant};
     fn missing<T>(r: &anyhow::Result<T>) -> Vec<String> {
         match r {
             Ok(_) => vec![],
             Err(e) => format!("{e:#}").split("MISSING_PACKAGES:").nth(1).map(|x| x.split(',').map(|s| s.trim().to_string()).collect()).unwrap_or_default(),
         }
     }
-    json!({
+    let mut status = json!({
         "engines": [
             {"id": "kokoro", "name": "Kokoro 82M (fast, built-in voices)", "ready": kok.is_ok(), "missing": missing(&kok), "caps": engine::kokoro::caps()},
-            {"id": "chatterbox", "name": "Chatterbox (voice cloning, emotion intensity)", "ready": cb.is_ok(), "missing": missing(&cb), "caps": engine::chatterbox::caps(), "unsupported": pyenv::chatterbox_unsupported_reason()},
         ],
+        "languages": engine::chatterbox::MTL_LANGUAGES.iter().map(|(c, n)| json!({"code": c, "name": n})).collect::<Vec<_>>(),
         "loaded": loaded,
         "busy": busy,
         "batch_running": batch_running,
         "mp3": vs_core::export::mp3_supported(s.ffmpeg_path.as_deref()),
-    })
+    });
+    for v in Variant::ALL {
+        let r = ChatterboxPaths::resolve(&store, &s.runtimes_dir(), s.cache_dir().join("tmp"), v);
+        status["engines"].as_array_mut().unwrap().push(json!({
+            "id": v.engine_id(),
+            "name": v.display_name(),
+            "ready": r.is_ok(),
+            "missing": missing(&r),
+            "caps": engine::chatterbox::caps_for(v),
+            "unsupported": pyenv::chatterbox_unsupported_reason(),
+        }));
+    }
+    status
 }
 
 #[tauri::command]

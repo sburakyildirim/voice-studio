@@ -19,7 +19,65 @@ use std::time::{Duration, Instant};
 
 pub const SAMPLE_RATE: u32 = 24000;
 
+/// Languages supported by Chatterbox Multilingual (code, English name).
+pub const MTL_LANGUAGES: &[(&str, &str)] = &[
+    ("ar", "Arabic"), ("da", "Danish"), ("de", "German"), ("el", "Greek"), ("en", "English"), ("es", "Spanish"),
+    ("fi", "Finnish"), ("fr", "French"), ("he", "Hebrew"), ("hi", "Hindi"), ("it", "Italian"), ("ja", "Japanese"),
+    ("ko", "Korean"), ("ms", "Malay"), ("nl", "Dutch"), ("no", "Norwegian"), ("pl", "Polish"), ("pt", "Portuguese"),
+    ("ru", "Russian"), ("sv", "Swedish"), ("sw", "Swahili"), ("tr", "Turkish"), ("zh", "Chinese"),
+];
+
+/// Which Chatterbox checkpoint a worker runs. All share the same Python runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Variant {
+    English,
+    Multilingual,
+    Turbo,
+}
+
+impl Variant {
+    pub const ALL: [Variant; 3] = [Variant::English, Variant::Multilingual, Variant::Turbo];
+
+    pub fn from_engine(id: &str) -> Option<Self> {
+        match id {
+            "chatterbox" => Some(Self::English),
+            "chatterbox-mtl" => Some(Self::Multilingual),
+            "chatterbox-turbo" => Some(Self::Turbo),
+            _ => None,
+        }
+    }
+    pub fn engine_id(self) -> &'static str {
+        match self {
+            Self::English => "chatterbox",
+            Self::Multilingual => "chatterbox-mtl",
+            Self::Turbo => "chatterbox-turbo",
+        }
+    }
+    pub fn package(self) -> &'static str {
+        match self {
+            Self::English => "chatterbox-en",
+            Self::Multilingual => "chatterbox-mtl",
+            Self::Turbo => "chatterbox-turbo",
+        }
+    }
+    fn worker_name(self) -> &'static str {
+        match self {
+            Self::English => "en",
+            Self::Multilingual => "mtl",
+            Self::Turbo => "turbo",
+        }
+    }
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::English => "Chatterbox (English · cloning · emotion intensity)",
+            Self::Multilingual => "Chatterbox Multilingual (23 languages · cloning · emotion intensity)",
+            Self::Turbo => "Chatterbox Turbo (English · cloning · faster, no emotion control)",
+        }
+    }
+}
+
 pub struct ChatterboxPaths {
+    pub variant: Variant,
     pub ckpt_dir: PathBuf,
     pub runtime: PathBuf,
     pub tmp_dir: PathBuf,
@@ -29,13 +87,13 @@ pub struct ChatterboxPaths {
 }
 
 impl ChatterboxPaths {
-    pub fn resolve(store: &Store, runtimes_dir: &std::path::Path, tmp_dir: PathBuf) -> Result<Self> {
+    pub fn resolve(store: &Store, runtimes_dir: &std::path::Path, tmp_dir: PathBuf, variant: Variant) -> Result<Self> {
         if let Some(r) = pyenv::chatterbox_unsupported_reason() {
             bail!("{r}");
         }
         let mut missing = Vec::new();
-        if !store.is_installed("chatterbox-en") {
-            missing.push("chatterbox-en".to_string());
+        if !store.is_installed(variant.package()) {
+            missing.push(variant.package().to_string());
         }
         let rt = PyRuntime::chatterbox(runtimes_dir);
         if !rt.is_installed() {
@@ -45,11 +103,11 @@ impl ChatterboxPaths {
             bail!("MISSING_PACKAGES:{}", missing.join(","));
         }
         let model_sha = store
-            .manifest("chatterbox-en")
+            .manifest(variant.package())
             .map(|m| m.sources.iter().map(|s| &s[..8]).collect::<Vec<_>>().join(""))
             .unwrap_or_default();
         let log_file = Some(crate::settings::data_root().join("logs").join("chatterbox-worker.log"));
-        Ok(Self { ckpt_dir: store.dir("chatterbox-en"), runtime: rt.dir, tmp_dir, model_sha, log_file })
+        Ok(Self { variant, ckpt_dir: store.dir(variant.package()), runtime: rt.dir, tmp_dir, model_sha, log_file })
     }
 }
 
@@ -249,15 +307,19 @@ impl Chatterbox {
     pub fn worker_pid(&self) -> Option<u32> {
         self.worker.as_ref().map(|w| w.child.id())
     }
+
+    pub fn variant(&self) -> Variant {
+        self.paths.variant
+    }
 }
 
 impl Engine for Chatterbox {
     fn id(&self) -> &'static str {
-        "chatterbox"
+        self.paths.variant.engine_id()
     }
 
     fn capabilities(&self) -> Capabilities {
-        caps()
+        caps_for(self.paths.variant)
     }
 
     fn is_loaded(&self) -> bool {
@@ -271,7 +333,7 @@ impl Engine for Chatterbox {
         log("Starting isolated Chatterbox worker…".into());
         let mut w = Worker::spawn(&self.paths)?;
         let r = w.call_with_status(
-            json!({"cmd": "load", "ckpt_dir": self.paths.ckpt_dir, "device": device}),
+            json!({"cmd": "load", "ckpt_dir": self.paths.ckpt_dir, "device": device, "variant": self.paths.variant.worker_name()}),
             Duration::from_secs(600),
             &Cancel::new(),
             log,
@@ -297,7 +359,7 @@ impl Engine for Chatterbox {
     }
 
     fn model_fingerprint(&self) -> String {
-        format!("chatterbox-en-{}:{}", pyenv::CHATTERBOX_VERSION, self.paths.model_sha)
+        format!("{}-{}:{}", self.paths.variant.package(), pyenv::CHATTERBOX_VERSION, self.paths.model_sha)
     }
 
     fn synthesize(&mut self, req: &SegmentRequest, cancel: &Cancel) -> Result<AudioBuf> {
@@ -315,6 +377,7 @@ impl Engine for Chatterbox {
                 "cfg_weight": req.style.cfg_weight,
                 "temperature": req.style.temperature,
                 "seed": req.seed,
+                "language": req.language,
                 "out": out,
             }),
             Duration::from_secs(900),
@@ -359,6 +422,33 @@ pub fn memory_hint(text: &str) -> Option<&'static str> {
 }
 
 pub fn caps() -> Capabilities {
+    caps_for(Variant::English)
+}
+
+pub fn caps_for(variant: Variant) -> Capabilities {
+    let mut c = caps_english();
+    c.engine = variant.engine_id().into();
+    match variant {
+        Variant::English => {}
+        Variant::Multilingual => {
+            c.notes.insert(0, "23 languages, chosen per render (Language selector). Markup works the same in every language.".into());
+            c.notes.insert(1, "Chinese, Japanese, Hebrew and Russian use extra text processing; quality varies by language.".into());
+        }
+        Variant::Turbo => {
+            c.emotion = Fidelity::Approximate;
+            c.notes = vec![
+                "Faster 350M English model with zero-shot cloning.".into(),
+                "Turbo has no emotion-intensity or CFG control: excited / calm / mystery only change pause length (approximated).".into(),
+                "Paralinguistic tags are passed through when escaped, e.g. \\[laugh\\] or \\[chuckle\\].".into(),
+                "Emphasis (*text*) is not supported and is spoken normally.".into(),
+                "Output carries Resemble AI's Perth imperceptible watermark.".into(),
+            ];
+        }
+    }
+    c
+}
+
+fn caps_english() -> Capabilities {
     Capabilities {
         engine: "chatterbox".into(),
         cloning: true,

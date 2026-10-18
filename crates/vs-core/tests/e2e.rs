@@ -59,6 +59,7 @@ fn kokoro_opts() -> RenderOptions {
         speed: 1.0,
         export_mp3: Some(false),
         bypass_cache: false,
+        language: None,
     }
 }
 
