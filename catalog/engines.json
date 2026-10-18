@@ -585,6 +585,122 @@
         "Best in Chinese and English; Japanese and Korean also supported.",
         "Upstream source is installed from a pinned commit (it is not published on PyPI)."
       ]
+    },
+    {
+      "id": "bark",
+      "catalog_id": "bark",
+      "name": "Bark small (generative · 13 languages · nonverbal cues)",
+      "adapter": "bark",
+      "license": "MIT",
+      "commercial": "Allowed under MIT.",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "transformers==4.57.6",
+          "accelerate",
+          "scipy"
+        ],
+        "probe": "from transformers import BarkModel"
+      },
+      "weights": {
+        "repo": "suno/bark-small",
+        "revision": "1dbd7a128513b8ae4a4e2130fed57b7ac9da5bcd",
+        "files": [
+          "config.json",
+          "generation_config.json",
+          "pytorch_model.bin",
+          "speaker_embeddings_path.json",
+          "special_tokens_map.json",
+          "tokenizer.json",
+          "tokenizer_config.json",
+          "vocab.txt"
+        ],
+        "dirs": [
+          "speaker_embeddings/v2"
+        ]
+      },
+      "voices": [
+        {
+          "id": "v2/en_speaker_6",
+          "name": "English 6",
+          "detail": "English, male"
+        },
+        {
+          "id": "v2/en_speaker_9",
+          "name": "English 9",
+          "detail": "English, female"
+        },
+        {
+          "id": "v2/en_speaker_3",
+          "name": "English 3",
+          "detail": "English, male"
+        },
+        {
+          "id": "v2/tr_speaker_0",
+          "name": "Turkish 0",
+          "detail": "Turkish, male"
+        },
+        {
+          "id": "v2/tr_speaker_4",
+          "name": "Turkish 4",
+          "detail": "Turkish, female"
+        },
+        {
+          "id": "v2/de_speaker_3",
+          "name": "German 3",
+          "detail": "German, male"
+        },
+        {
+          "id": "v2/fr_speaker_1",
+          "name": "French 1",
+          "detail": "French, female"
+        },
+        {
+          "id": "v2/es_speaker_1",
+          "name": "Spanish 1",
+          "detail": "Spanish, male"
+        },
+        {
+          "id": "v2/it_speaker_4",
+          "name": "Italian 4",
+          "detail": "Italian"
+        },
+        {
+          "id": "v2/ja_speaker_2",
+          "name": "Japanese 2",
+          "detail": "Japanese"
+        },
+        {
+          "id": "v2/zh_speaker_9",
+          "name": "Chinese 9",
+          "detail": "Chinese"
+        },
+        {
+          "id": "v2/ru_speaker_5",
+          "name": "Russian 5",
+          "detail": "Russian"
+        }
+      ],
+      "languages": [],
+      "cloning": false,
+      "emotion": "none",
+      "emphasis": "unsupported",
+      "max_chars": 150,
+      "gpu": true,
+      "approx_download_mb": 1700,
+      "notes": [
+        "Generative and lively but less predictable: it may add breaths or change pacing on its own.",
+        "Nonverbal cues are passed through when escaped, e.g. \\[laughs\\], \\[sighs\\], \\[clears throat\\].",
+        "No emotion input and no cloning; markup only changes pause length.",
+        "Each generation is limited to ~13 s, so long sentences are split."
+      ]
     }
   ]
 }
