@@ -113,6 +113,31 @@ unchanged — consistent with the "approximated" label. Chatterbox's exaggeratio
 pitch and pitch variation for excited delivery (+12 Hz median, +16 % spread) and slows calm
 delivery; effects are real but moderate.
 
+## Additional engines (Windows 11, RTX 4050 Laptop 6 GB)
+
+Each engine was installed through `vscli engine install <id>` and rendered the emotion script
+or a short narration; transcripts by Whisper base.en, similarity as above (clone engines use
+the same synthetic reference). One render each, single seed — indicative only.
+
+| Engine | WER | Similarity | Markup effect observed |
+|---|---|---|---|
+| Piper (en_US lessac) | ≈ 1.9 % | — | rate/level approximations only |
+| XTTS-v2 | 0.0 % | — | approximations only |
+| F5-TTS v1 (clone) | 0.0 % | 0.928 | approximations only |
+| Parler-TTS mini | 0.0 % | — | excited +11 % rate, mystery −5 dB (from the description) |
+| Zonos v0.1 | 0.0 % | — | excited median pitch 122 → 243 Hz (emotion vector) |
+| CosyVoice 2 (clone) | 0.0 % | 0.903 | instruction-driven, audible |
+| Bark small | 0.0 % | — | none (pauses only) |
+| Dia 1.6B | ≈ 20 % | — | none; generative, occasional homophones |
+| Kyutai TTS 1.6B | 0.0 % | — | Expresso style voices per emotion |
+| Spark-TTS 0.5B | 0.0 % | — | pitch/speed levels |
+| StyleTTS 2 | ≈ 7 % (homophones) | — | expressiveness controls; unstable settings guarded |
+| IndexTTS-2 (clone) | 0.0 % | 0.932 | neutral 179 Hz / −19.4 dB → excited **331 Hz / −11.5 dB**; mystery 2.6 words/s vs 3.6 |
+
+IndexTTS-2 gives the strongest emotion control measured here, but it needs more than the
+6 GB of this GPU: peak 6.6 GB VRAM, the rest spills into shared memory and the 21 s render
+took 1194 s (RTF 57, model load 57 s). Expect usable speed only on 8 GB+ cards.
+
 ## Robustness checks performed
 
 | Check | How | Result |
@@ -131,7 +156,7 @@ delivery; effects are real but moderate.
 | Cancel | cancel after 2 segments | stops, no half-written project (e2e) |
 | Markup | 25 parser tests incl. 2,000-case fuzz of word preservation | pass |
 
-Test totals: **75 unit tests** and **7 end-to-end tests** with real models pass on Windows x64.
+Test totals: **80 unit tests** and **7 end-to-end tests** with real models pass on Windows x64.
 
 ## Not measured / not verified
 

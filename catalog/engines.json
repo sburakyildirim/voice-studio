@@ -965,6 +965,91 @@
         "Markup is approximated with StyleTTS 2's expressiveness controls (embedding scale and style mix), not emotion categories.",
         "English only. The pretrained model's terms ask you to disclose synthetic speech."
       ]
+    },
+    {
+      "id": "indextts",
+      "catalog_id": "indextts2",
+      "name": "IndexTTS-2 (separate voice + emotion control · cloning · ZH/EN)",
+      "adapter": "indextts",
+      "license": "bilibili IndexTTS model license (custom); w2v-bert MIT; BigVGAN MIT; CAMPPlus Apache-2.0; MaskGCT codec CC-BY-NC-4.0",
+      "commercial": "Custom terms (and a CC-BY-NC component) — treat as non-commercial unless you have a licence from bilibili.",
+      "platforms": [
+        "windows-x86_64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.8.0",
+        "torch_cuda": "cu126",
+        "packages": [
+          "indextts @ https://github.com/index-tts/index-tts/archive/d9e41aac89fd00b3d71497fddb287b7f24613712.zip"
+        ],
+        "probe": "from indextts.infer_v2 import IndexTTS2"
+      },
+      "weights": {
+        "repo": "IndexTeam/IndexTTS-2",
+        "revision": "740dcaff396282ffb241903d150ac011cd4b1ede",
+        "files": [
+          "config.yaml",
+          "bpe.model",
+          "feat1.pt",
+          "feat2.pt",
+          "gpt.pth",
+          "s2mel.pth",
+          "wav2vec2bert_stats.pt",
+          "LICENSE.txt"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "facebook/w2v-bert-2.0",
+          "revision": "da985ba0987f70aaeb84a80f2851cfac8c697a7b",
+          "files": [
+            "config.json",
+            "model.safetensors",
+            "preprocessor_config.json"
+          ],
+          "subdir": "w2v-bert"
+        },
+        {
+          "repo": "amphion/MaskGCT",
+          "revision": "265c6cef07625665d0c28d2faafb1415562379dc",
+          "files": [
+            "semantic_codec/model.safetensors"
+          ],
+          "subdir": "maskgct"
+        },
+        {
+          "repo": "funasr/campplus",
+          "revision": "e4b6ede7ce16997aff4ae69fbca1f0175e2afede",
+          "files": [
+            "campplus_cn_common.bin"
+          ],
+          "subdir": "campplus"
+        },
+        {
+          "repo": "nvidia/bigvgan_v2_22khz_80band_256x",
+          "revision": "633ff708ed5b74903e86ff1298cf4a98e921c513",
+          "files": [
+            "config.json",
+            "bigvgan_generator.pt"
+          ],
+          "subdir": "bigvgan"
+        }
+      ],
+      "voices": [],
+      "languages": [],
+      "cloning": true,
+      "emotion": "genuine",
+      "emphasis": "unsupported",
+      "max_chars": 220,
+      "gpu": true,
+      "approx_download_mb": 7700,
+      "notes": [
+        "Voice Clone is required: the speaker always comes from a voice profile.",
+        "Emotion is controlled separately from the speaker with IndexTTS-2's emotion vector (happy/surprised for excited, calm, afraid/melancholic for mystery) — genuine conditioning.",
+        "Chinese and English. Runs in float16 on NVIDIA GPUs and wants 8 GB or more of GPU memory: on a 6 GB card it spills into shared memory and is about 50x slower than real time (measured on an RTX 4050 Laptop)."
+      ]
     }
   ]
 }

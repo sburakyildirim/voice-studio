@@ -134,6 +134,14 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
         }
     }
 
+    /// Index for a specific CUDA build ("cu126") on NVIDIA machines; CPU/MPS otherwise.
+    pub fn torch_index_for(cuda: Option<&str>) -> Option<String> {
+        match (Self::torch_index(), cuda) {
+            (Some(i), Some(c)) if i.contains("/cu") => Some(format!("https://download.pytorch.org/whl/{c}")),
+            (i, _) => i.map(String::from),
+        }
+    }
+
     /// Create the venv and install pinned packages. Streams uv output to `log`.
     pub fn install(&self, uv: &Path, cancel: &Cancel, log: &mut dyn FnMut(String)) -> Result<RuntimeInfo> {
         if let Some(r) = chatterbox_unsupported_reason() {
@@ -272,9 +280,9 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
             // torchaudio is always pinned to the same release: many audio packages pull it in
             // and a newer build fails to load against an older torch (WinError 127).
             let mut args = vec![s("pip"), s("install"), s("--python"), py.clone(), format!("torch=={t}"), format!("torchaudio=={t}")];
-            if let Some(idx) = Self::torch_index() {
+            if let Some(idx) = Self::torch_index_for(spec.torch_cuda.as_deref()) {
                 args.push(s("--index-url"));
-                args.push(s(idx));
+                args.push(idx);
             }
             run(&args, log)?;
         }
@@ -285,9 +293,9 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
             // Keep the machine-specific torch build that was just installed.
             args.push(format!("torch=={t}"));
             args.push(format!("torchaudio=={t}"));
-            if let Some(idx) = Self::torch_index() {
+            if let Some(idx) = Self::torch_index_for(spec.torch_cuda.as_deref()) {
                 args.push(s("--extra-index-url"));
-                args.push(s(idx));
+                args.push(idx);
                 args.push(s("--index-strategy"));
                 args.push(s("unsafe-best-match"));
             }

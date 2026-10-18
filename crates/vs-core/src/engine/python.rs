@@ -33,6 +33,7 @@ const ADAPTERS: &[(&str, &str)] = &[
     ("kyutai", include_str!("../../../../worker/adapters/kyutai.py")),
     ("spark", include_str!("../../../../worker/adapters/spark.py")),
     ("styletts2", include_str!("../../../../worker/adapters/styletts2.py")),
+    ("indextts", include_str!("../../../../worker/adapters/indextts.py")),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,6 +44,9 @@ pub struct RuntimeSpec {
     pub torch: Option<String>,
     #[serde(default)]
     pub torchaudio: bool,
+    /// CUDA build of PyTorch for NVIDIA machines (e.g. "cu126"); default cu124.
+    #[serde(default)]
+    pub torch_cuda: Option<String>,
     pub packages: Vec<String>,
     /// Extra arguments for `uv pip install` (e.g. "--no-deps").
     #[serde(default)]

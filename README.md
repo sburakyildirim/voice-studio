@@ -55,6 +55,51 @@ Built and fully tested on Windows x64; macOS (Apple Silicon + Intel) and Linux x
 build + Kokoro end-to-end tests on GitHub Actions VMs ([.github/workflows](.github/workflows)); the
 desktop app has not yet been opened on a physical Mac or Linux machine.
 
+## Engines
+
+All engines run offline once installed. Kokoro is native (Rust + ONNX Runtime); every other
+engine runs in its own isolated Python environment, installed with one click in
+Options › Models › *More engines* (or `vscli engine install <id>`). Model files are pinned to
+an upstream commit and verified (SHA-256 for every large file); PyTorch wheels are shared
+between environments on the same drive.
+
+Emotion labels: **genuine** = the model has a real control for it; **approximated** = Voice
+Studio changes rate / level / pauses; **pauses only** = the model has no control at all.
+
+| Engine (id) | Cloning | Emotion markup | Languages | Licence / commercial | Verified here (Windows, RTX 4050) |
+|---|---|---|---|---|---|
+| Kokoro 82M (`kokoro`) | — | approximated | EN | Apache-2.0 ✔ | WER 1.3 % on 60 s, ~4× real time on CPU |
+| Chatterbox (`chatterbox`) | ✔ | genuine (intensity) | EN | MIT ✔ | clone WER 0 %, similarity 0.94 |
+| Chatterbox Multilingual (`chatterbox-mtl`) | ✔ | genuine (intensity) | 23 incl. TR | MIT ✔ | Turkish render OK |
+| Chatterbox Turbo (`chatterbox-turbo`) | ✔ | pauses only | EN | MIT ✔ | render OK |
+| Piper (`piper`) | — | approximated | 10 incl. TR | GPL-3 + per-voice | WER 1.9 %, ~2× real time on CPU |
+| XTTS-v2 (`xtts`) | ✔ | approximated | 17 incl. TR | CPML ✘ non-commercial | WER 0 %, Turkish clone OK |
+| F5-TTS v1 (`f5`) | ✔ | approximated | EN, ZH | CC-BY-NC ✘ | clone WER 0 %, similarity 0.93 |
+| Parler-TTS mini (`parler`) | — | genuine (described) | EN | Apache-2.0 ✔ | WER 0 %; excited +11 % rate, mystery −5 dB |
+| Zonos v0.1 (`zonos`) | ✔ | genuine (emotion vector) | 15 incl. TR | Apache-2.0 ✔ | WER 0 %; excited pitch 122→243 Hz |
+| CosyVoice 2 (`cosyvoice`) | ✔ | genuine (instructions) | ZH, EN, JA, KO | Apache-2.0 ✔ | WER 0 %, similarity 0.90 |
+| Bark small (`bark`) | — | pauses only | 13 incl. TR | MIT ✔ | WER 0 % |
+| Dia 1.6B (`dia`) | — | pauses only (+ cues) | EN | Apache-2.0 ✔ | WER 20 % (generative, homophones) |
+| Kyutai TTS 1.6B (`kyutai`) | — | genuine (styled voice) | EN, FR | CC-BY-4.0 ✔ | WER 0 %, fastest GPU engine |
+| Spark-TTS 0.5B (`spark`) | ✔ | approximated (pitch/speed levels) | EN, ZH | CC-BY-NC-SA ✘ | WER 0 % |
+| StyleTTS 2 (`styletts2`) | ✔ | approximated (expressiveness) | EN | MIT + usage condition | WER ≈ 7 % (homophones) |
+| IndexTTS-2 (`indextts`) | ✔ (required) | genuine, separate from voice | ZH, EN | custom ✘ | clone WER 0 %, similarity 0.93; excited pitch 179→331 Hz; needs ≥ 8 GB VRAM (RTF 57 on 6 GB) |
+
+Not integrated, and why (also shown in the app's catalog):
+
+| Model | Reason |
+|---|---|
+| Higgs Audio v2 | needs a ~24 GB GPU |
+| Orpheus 3B | needs vLLM (Linux only) for usable speed |
+| Sesame CSM-1B, OpenAudio S1-mini | gated downloads that require an account |
+| VibeVoice | withdrawn by Microsoft |
+| MaskGCT | multi-stage, heavy for 6 GB GPUs and non-commercial; its codec is used inside IndexTTS-2 |
+| MeloTTS / OpenVoice V2 | Windows install needs the full UniDic dictionary and old transformers; overlaps Piper/Kokoro (planned) |
+
+macOS: Kokoro, Piper, Chatterbox (Apple Silicon), XTTS, F5, Parler, Bark, Dia, Kyutai, Spark and
+StyleTTS 2 are offered; Zonos, CosyVoice and IndexTTS-2 are Windows/Linux only upstream. The
+extra engines have only been run on Windows so far.
+
 ## Install & first run
 
 1. Run `Voice Studio_<version>_x64-setup.exe` (per-user, no admin) or the MSI. For the portable
