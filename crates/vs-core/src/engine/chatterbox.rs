@@ -121,6 +121,7 @@ pub(crate) struct WorkerLaunch {
 }
 
 pub(crate) struct Worker {
+    label: String,
     child: Child,
     stdin: ChildStdin,
     rx: Receiver<String>,
@@ -201,6 +202,7 @@ impl Worker {
             }
         });
         let mut w = Self {
+            label: launch.label.clone(),
             child,
             stdin,
             rx,
@@ -290,7 +292,7 @@ impl Worker {
                 msg = format!("{h} ({msg})");
             }
             tracing::warn!("worker error: {msg}\n{}", v["trace"].as_str().unwrap_or(""));
-            return Err(anyhow!("Chatterbox: {msg}"));
+            return Err(anyhow!("{}: {msg}", self.label));
         }
     }
 

@@ -24,6 +24,7 @@ const HOST_PY: &str = include_str!("../../../../worker/vs_worker.py");
 const ADAPTERS: &[(&str, &str)] = &[
     ("piper", include_str!("../../../../worker/adapters/piper.py")),
     ("xtts", include_str!("../../../../worker/adapters/xtts.py")),
+    ("f5", include_str!("../../../../worker/adapters/f5.py")),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +53,9 @@ pub struct WeightsSpec {
     /// Individual files.
     #[serde(default)]
     pub files: Vec<String>,
+    /// Sub-folder of the engine's model folder these files go into ("" = root).
+    #[serde(default)]
+    pub subdir: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +79,9 @@ pub struct EngineSpec {
     pub platforms: Vec<String>,
     pub runtime: RuntimeSpec,
     pub weights: WeightsSpec,
+    /// Additional repositories (vocoders, ASR for reference transcripts, …).
+    #[serde(default)]
+    pub extra_weights: Vec<WeightsSpec>,
     #[serde(default)]
     pub voices: Vec<VoiceSpec>,
     /// Languages selectable per render (empty: the language follows the voice).
@@ -188,7 +195,23 @@ pub fn plan_style(spec: &EngineSpec, emotion: Emotion, emotion_control: bool) ->
 /// Build the weights package by listing the pinned Hugging Face revision. LFS files carry
 /// the publisher's SHA-256; small text files are pinned by revision and size.
 pub fn weights_package(spec: &EngineSpec) -> Result<Package> {
-    let w = &spec.weights;
+    let mut files = Vec::new();
+    for w in std::iter::once(&spec.weights).chain(spec.extra_weights.iter()) {
+        files.extend(weights_files(w)?);
+    }
+    Ok(Package {
+        id: spec.package_id(),
+        title: format!("{} weights", spec.name),
+        kind: "model".into(),
+        engine: spec.id.clone(),
+        note: None,
+        license: spec.license.clone(),
+        platforms: spec.platforms.clone(),
+        files,
+    })
+}
+
+fn weights_files(w: &WeightsSpec) -> Result<Vec<FileSpec>> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(60)))
         .user_agent(concat!("VoiceStudio/", env!("CARGO_PKG_VERSION")))
@@ -208,7 +231,7 @@ pub fn weights_package(spec: &EngineSpec) -> Result<Package> {
             url: format!("https://huggingface.co/{}/resolve/{}/{}", w.repo, w.revision, path),
             sha256: sha,
             size,
-            dest: path,
+            dest: if w.subdir.is_empty() { path } else { format!("{}/{}", w.subdir, path) },
             extract: vec![],
         }
     };
@@ -225,16 +248,7 @@ pub fn weights_package(spec: &EngineSpec) -> Result<Package> {
         let item = list(parent)?.into_iter().find(|f| f["path"] == json!(path)).ok_or_else(|| anyhow!("{path} not found in {}", w.repo))?;
         files.push(to_spec(&item));
     }
-    Ok(Package {
-        id: spec.package_id(),
-        title: format!("{} weights", spec.name),
-        kind: "model".into(),
-        engine: spec.id.clone(),
-        note: None,
-        license: spec.license.clone(),
-        platforms: spec.platforms.clone(),
-        files,
-    })
+    Ok(files)
 }
 
 pub struct InstallState {
@@ -306,7 +320,16 @@ impl PyEngine {
             bail!("MISSING_PACKAGES:{}", spec.package_id());
         }
         let sha = store.manifest(&spec.package_id()).map(|m| m.sources.iter().map(|s| s.get(..8).unwrap_or("")).collect::<String>()).unwrap_or_default();
-        let fingerprint = format!("{}:{}:{}", spec.id, spec.weights.revision, fsutil::sha256_bytes(sha.as_bytes()));
+        // Adapter code is part of the fingerprint: changing how a model is driven must
+        // invalidate cached segments.
+        let adapter_code = ADAPTERS.iter().find(|(n, _)| *n == spec.adapter).map(|(_, c)| *c).unwrap_or("");
+        let fingerprint = format!(
+            "{}:{}:{}:{}",
+            spec.id,
+            spec.weights.revision,
+            fsutil::sha256_bytes(sha.as_bytes()),
+            &fsutil::sha256_bytes(adapter_code.as_bytes())[..12]
+        );
         Ok(Self {
             id: Box::leak(spec.id.clone().into_boxed_str()),
             runtime: spec.runtime(runtimes_dir).dir,

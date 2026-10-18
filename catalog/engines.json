@@ -231,6 +231,81 @@
         "No emotion input: excited / calm / mystery change speed and pause length (approximated).",
         "Weights are licensed for non-commercial use only (Coqui Public Model License)."
       ]
+    },
+    {
+      "id": "f5",
+      "catalog_id": "f5-tts",
+      "name": "F5-TTS v1 (high-quality cloning · EN/ZH · non-commercial)",
+      "adapter": "f5",
+      "license": "Code MIT; F5-TTS v1 weights CC-BY-NC-4.0; Vocos MIT; Whisper-base Apache-2.0",
+      "commercial": "Non-commercial use only (weights trained on the Emilia dataset).",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "torchaudio": true,
+        "packages": [
+          "f5-tts==1.1.22"
+        ],
+        "probe": "from f5_tts.api import F5TTS"
+      },
+      "weights": {
+        "repo": "SWivid/F5-TTS",
+        "revision": "84e5a410d9cead4de2f847e7c9369a6440bdfaca",
+        "files": [
+          "F5TTS_v1_Base/model_1250000.safetensors",
+          "F5TTS_v1_Base/vocab.txt"
+        ]
+      },
+      "extra_weights": [
+        {
+          "repo": "charactr/vocos-mel-24khz",
+          "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+          "files": [
+            "config.yaml",
+            "pytorch_model.bin"
+          ],
+          "subdir": "vocos"
+        },
+        {
+          "repo": "openai/whisper-base",
+          "revision": "e37978b90ca9030d5170a5c07aadb050351a65bb",
+          "files": [
+            "config.json",
+            "generation_config.json",
+            "model.safetensors",
+            "preprocessor_config.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "vocab.json",
+            "merges.txt",
+            "normalizer.json",
+            "added_tokens.json",
+            "special_tokens_map.json"
+          ],
+          "subdir": "whisper"
+        }
+      ],
+      "voices": [],
+      "languages": [],
+      "cloning": true,
+      "emotion": "approximate",
+      "emphasis": "unsupported",
+      "max_chars": 200,
+      "gpu": true,
+      "approx_download_mb": 1800,
+      "notes": [
+        "Very natural zero-shot cloning; English and Chinese.",
+        "The reference is cut to about 10 s at a pause and transcribed locally (Whisper-base) — no internet needed.",
+        "Without a voice profile it uses F5's packaged English example voice.",
+        "No emotion input: markup changes speed and pause length (approximated).",
+        "Weights are licensed for non-commercial use only (CC-BY-NC-4.0)."
+      ]
     }
   ]
 }
