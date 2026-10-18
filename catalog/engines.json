@@ -915,6 +915,56 @@
         "With Voice Clone it copies the reference voice; markup then only changes pauses.",
         "English and Chinese. Weights are non-commercial (CC-BY-NC-SA-4.0)."
       ]
+    },
+    {
+      "id": "styletts2",
+      "catalog_id": "styletts2",
+      "name": "StyleTTS 2 (style transfer · cloning · English)",
+      "adapter": "styletts2",
+      "license": "Code MIT; LibriTTS pretrained model carries a usage condition",
+      "commercial": "Pretrained-model terms require telling listeners the speech is synthetic unless the speakers consented.",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "styletts2==0.1.6"
+        ],
+        "probe": "import nltk\nnltk.download = lambda *a, **k: True\nimport styletts2.models",
+        "post_install": "import hashlib, os, sys, urllib.request\nroot = os.path.join(os.path.dirname(sys.prefix), 'assets')\nbase = 'https://github.com/yl4579/StyleTTS2/raw/5cedc71c333f8d8b8551ca59378bdcc7af4c9529/Utils/'\nwant = {\n    'ASR/epoch_00080.pth': 'fedd55a1234b0c56e1e8b509c74edf3a5e2f27106a66038a4a946047a775bd6c',\n    'ASR/config.yml': 'f573495b4377524e224b1c73784052f20378c1d68734f38d67f3da32aaad970f',\n    'JDC/bst.t7': '54dc94364b97e18ac1dfa6287714ed121248cfaac4cfd39d061c6e0a089ef169',\n    'PLBERT/step_1000000.t7': '0714ff85804db43e06b3b0ac5749bf90cf206257c6c5916e8a98c5933b4c21e0',\n    'PLBERT/config.yml': 'e5eb4151f130ceae8dd2538f90aced3b66fcad5afa46724b36be435725decdde',\n}\nfor rel, sha in want.items():\n    dst = os.path.join(root, *rel.split('/'))\n    ok = os.path.exists(dst) and hashlib.sha256(open(dst, 'rb').read()).hexdigest() == sha\n    if not ok:\n        os.makedirs(os.path.dirname(dst), exist_ok=True)\n        urllib.request.urlretrieve(base + rel, dst + '.part')\n        if hashlib.sha256(open(dst + '.part', 'rb').read()).hexdigest() != sha:\n            os.remove(dst + '.part')\n            raise SystemExit('checksum mismatch for ' + rel)\n        os.replace(dst + '.part', dst)\nimport nltk\nfor pkg in ['punkt', 'punkt_tab']:\n    nltk.download(pkg, download_dir=os.path.join(root, 'nltk_data'), quiet=True)\n"
+      },
+      "weights": {
+        "repo": "yl4579/StyleTTS2-LibriTTS",
+        "revision": "3aa7ba7f8f275ec13dce21682a61494c35089e2a",
+        "files": [
+          "Models/LibriTTS/config.yml",
+          "Models/LibriTTS/epochs_2nd_00020.pth",
+          "reference_audio.zip"
+        ]
+      },
+      "voices": [
+        {
+          "id": "libritts",
+          "name": "LibriTTS reference speaker",
+          "detail": "from the model's reference set; use Voice Clone for others"
+        }
+      ],
+      "languages": [],
+      "cloning": true,
+      "emotion": "approximate",
+      "emphasis": "unsupported",
+      "max_chars": 250,
+      "gpu": true,
+      "approx_download_mb": 900,
+      "notes": [
+        "Zero-shot style and voice transfer from a reference clip.",
+        "Markup is approximated with StyleTTS 2's expressiveness controls (embedding scale and style mix), not emotion categories.",
+        "English only. The pretrained model's terms ask you to disclose synthetic speech."
+      ]
     }
   ]
 }
