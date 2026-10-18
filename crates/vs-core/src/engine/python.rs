@@ -21,7 +21,10 @@ use std::time::Duration;
 pub const ENGINES_JSON: &str = include_str!("../../../../catalog/engines.json");
 const HOST_PY: &str = include_str!("../../../../worker/vs_worker.py");
 /// Adapter sources embedded in the binary (name, code).
-const ADAPTERS: &[(&str, &str)] = &[("piper", include_str!("../../../../worker/adapters/piper.py"))];
+const ADAPTERS: &[(&str, &str)] = &[
+    ("piper", include_str!("../../../../worker/adapters/piper.py")),
+    ("xtts", include_str!("../../../../worker/adapters/xtts.py")),
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeSpec {

@@ -8,32 +8,119 @@
       "adapter": "piper",
       "license": "piper-tts: GPL-3.0; each voice keeps its dataset license (MODEL_CARD in the voice folder)",
       "commercial": "Depends on the voice's dataset license — check MODEL_CARD before commercial use.",
-      "platforms": ["windows-x86_64", "macos-aarch64", "macos-x86_64", "linux-x86_64", "linux-aarch64"],
-      "runtime": { "python": "3.11", "torch": null, "packages": ["piper-tts==1.8.0"], "probe": "import piper" },
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "macos-x86_64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": null,
+        "packages": [
+          "piper-tts==1.8.0"
+        ],
+        "probe": "import piper"
+      },
       "weights": {
         "repo": "rhasspy/piper-voices",
         "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
         "dirs": [
-          "en/en_US/lessac/medium", "en/en_US/ryan/high", "en/en_US/amy/medium", "en/en_GB/alan/medium",
-          "en/en_GB/cori/high", "tr/tr_TR/dfki/medium", "de/de_DE/thorsten/medium", "fr/fr_FR/siwis/medium",
-          "es/es_ES/davefx/medium", "it/it_IT/paola/medium", "pt/pt_BR/faber/medium", "ru/ru_RU/irina/medium",
+          "en/en_US/lessac/medium",
+          "en/en_US/ryan/high",
+          "en/en_US/amy/medium",
+          "en/en_GB/alan/medium",
+          "en/en_GB/cori/high",
+          "tr/tr_TR/dfki/medium",
+          "de/de_DE/thorsten/medium",
+          "fr/fr_FR/siwis/medium",
+          "es/es_ES/davefx/medium",
+          "it/it_IT/paola/medium",
+          "pt/pt_BR/faber/medium",
+          "ru/ru_RU/irina/medium",
           "nl/nl_NL/mls/medium"
         ]
       },
       "voices": [
-        { "id": "en_US-lessac-medium", "name": "Lessac", "language": "en", "detail": "US English, female" },
-        { "id": "en_US-ryan-high", "name": "Ryan", "language": "en", "detail": "US English, male, high quality" },
-        { "id": "en_US-amy-medium", "name": "Amy", "language": "en", "detail": "US English, female" },
-        { "id": "en_GB-alan-medium", "name": "Alan", "language": "en", "detail": "British English, male" },
-        { "id": "en_GB-cori-high", "name": "Cori", "language": "en", "detail": "British English, female, high quality" },
-        { "id": "tr_TR-dfki-medium", "name": "DFKI", "language": "tr", "detail": "Turkish, male" },
-        { "id": "de_DE-thorsten-medium", "name": "Thorsten", "language": "de", "detail": "German, male" },
-        { "id": "fr_FR-siwis-medium", "name": "Siwis", "language": "fr", "detail": "French, female" },
-        { "id": "es_ES-davefx-medium", "name": "Davefx", "language": "es", "detail": "Spanish, male" },
-        { "id": "it_IT-paola-medium", "name": "Paola", "language": "it", "detail": "Italian, female" },
-        { "id": "pt_BR-faber-medium", "name": "Faber", "language": "pt", "detail": "Brazilian Portuguese, male" },
-        { "id": "ru_RU-irina-medium", "name": "Irina", "language": "ru", "detail": "Russian, female" },
-        { "id": "nl_NL-mls-medium", "name": "MLS", "language": "nl", "detail": "Dutch" }
+        {
+          "id": "en_US-lessac-medium",
+          "name": "Lessac",
+          "language": "en",
+          "detail": "US English, female"
+        },
+        {
+          "id": "en_US-ryan-high",
+          "name": "Ryan",
+          "language": "en",
+          "detail": "US English, male, high quality"
+        },
+        {
+          "id": "en_US-amy-medium",
+          "name": "Amy",
+          "language": "en",
+          "detail": "US English, female"
+        },
+        {
+          "id": "en_GB-alan-medium",
+          "name": "Alan",
+          "language": "en",
+          "detail": "British English, male"
+        },
+        {
+          "id": "en_GB-cori-high",
+          "name": "Cori",
+          "language": "en",
+          "detail": "British English, female, high quality"
+        },
+        {
+          "id": "tr_TR-dfki-medium",
+          "name": "DFKI",
+          "language": "tr",
+          "detail": "Turkish, male"
+        },
+        {
+          "id": "de_DE-thorsten-medium",
+          "name": "Thorsten",
+          "language": "de",
+          "detail": "German, male"
+        },
+        {
+          "id": "fr_FR-siwis-medium",
+          "name": "Siwis",
+          "language": "fr",
+          "detail": "French, female"
+        },
+        {
+          "id": "es_ES-davefx-medium",
+          "name": "Davefx",
+          "language": "es",
+          "detail": "Spanish, male"
+        },
+        {
+          "id": "it_IT-paola-medium",
+          "name": "Paola",
+          "language": "it",
+          "detail": "Italian, female"
+        },
+        {
+          "id": "pt_BR-faber-medium",
+          "name": "Faber",
+          "language": "pt",
+          "detail": "Brazilian Portuguese, male"
+        },
+        {
+          "id": "ru_RU-irina-medium",
+          "name": "Irina",
+          "language": "ru",
+          "detail": "Russian, female"
+        },
+        {
+          "id": "nl_NL-mls-medium",
+          "name": "MLS",
+          "language": "nl",
+          "detail": "Dutch"
+        }
       ],
       "languages": [],
       "cloning": false,
@@ -46,6 +133,103 @@
         "Very fast on any CPU; good for drafts and many languages.",
         "No emotion conditioning: excited / calm / mystery change speaking rate, level and pause length (approximated).",
         "No voice cloning. The language follows the chosen voice."
+      ]
+    },
+    {
+      "id": "xtts",
+      "catalog_id": "xtts-v2",
+      "name": "XTTS-v2 (cloning · 17 languages · non-commercial)",
+      "adapter": "xtts",
+      "license": "Coqui Public Model License 1.0.0 (weights); coqui-tts MPL-2.0",
+      "commercial": "Non-commercial use only (CPML).",
+      "platforms": [
+        "windows-x86_64",
+        "macos-aarch64",
+        "linux-x86_64",
+        "linux-aarch64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "torchaudio": true,
+        "packages": [
+          "coqui-tts==0.27.5",
+          "transformers==4.57.6"
+        ],
+        "probe": "from TTS.tts.models.xtts import Xtts"
+      },
+      "weights": {
+        "repo": "coqui/XTTS-v2",
+        "revision": "6c2b0d75eae4b7047358e3b6bd9325f857d43f77",
+        "files": [
+          "config.json",
+          "model.pth",
+          "vocab.json",
+          "speakers_xtts.pth",
+          "LICENSE.txt"
+        ]
+      },
+      "voices": [
+        {
+          "id": "Claribel Dervla",
+          "name": "Claribel",
+          "detail": "built-in studio speaker, female"
+        },
+        {
+          "id": "Daisy Studious",
+          "name": "Daisy",
+          "detail": "built-in studio speaker, female"
+        },
+        {
+          "id": "Ana Florence",
+          "name": "Ana",
+          "detail": "built-in studio speaker, female"
+        },
+        {
+          "id": "Damien Black",
+          "name": "Damien",
+          "detail": "built-in studio speaker, male"
+        },
+        {
+          "id": "Viktor Eka",
+          "name": "Viktor",
+          "detail": "built-in studio speaker, male"
+        },
+        {
+          "id": "Craig Gutsy",
+          "name": "Craig",
+          "detail": "built-in studio speaker, male"
+        }
+      ],
+      "languages": [
+        "en",
+        "tr",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "pl",
+        "ru",
+        "nl",
+        "cs",
+        "ar",
+        "zh-cn",
+        "hu",
+        "ko",
+        "ja",
+        "hi"
+      ],
+      "cloning": true,
+      "emotion": "approximate",
+      "emphasis": "unsupported",
+      "max_chars": 220,
+      "gpu": true,
+      "approx_download_mb": 2000,
+      "notes": [
+        "Zero-shot cloning from a 6–30 s reference; works across its 17 languages (including Turkish).",
+        "No emotion input: excited / calm / mystery change speed and pause length (approximated).",
+        "Weights are licensed for non-commercial use only (Coqui Public Model License)."
       ]
     }
   ]
