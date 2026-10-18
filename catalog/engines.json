@@ -499,6 +499,92 @@
         "Upstream supports Linux only; on Windows the pure-PyTorch transformer model runs without torch.compile (slower first generation).",
         "Not available on macOS: the upstream package does not support it."
       ]
+    },
+    {
+      "id": "cosyvoice",
+      "catalog_id": "cosyvoice2",
+      "name": "CosyVoice 2 (instructed emotions · cloning · ZH/EN/JA/KO)",
+      "adapter": "cosyvoice",
+      "license": "Apache-2.0 (code and weights)",
+      "commercial": "Allowed under Apache-2.0 (check the model card).",
+      "platforms": [
+        "windows-x86_64",
+        "linux-x86_64"
+      ],
+      "runtime": {
+        "python": "3.11",
+        "torch": "2.6.0",
+        "packages": [
+          "conformer==0.3.2",
+          "diffusers==0.29.0",
+          "hydra-core==1.3.2",
+          "HyperPyYAML==1.2.3",
+          "inflect==7.3.1",
+          "librosa==0.10.2",
+          "lightning==2.2.4",
+          "matplotlib",
+          "modelscope==1.20.0",
+          "numpy==1.26.4",
+          "omegaconf==2.3.0",
+          "onnx==1.16.0",
+          "onnxruntime==1.18.0",
+          "openai-whisper==20250625",
+          "protobuf==4.25.8",
+          "soundfile",
+          "transformers==4.51.3",
+          "x-transformers==2.11.24",
+          "wetext==0.0.4",
+          "rich",
+          "einops",
+          "setuptools<81",
+          "gdown==5.1.0",
+          "wget==3.2",
+          "pyarrow==18.1.0",
+          "pyworld==0.3.5"
+        ],
+        "probe": "import pkg_resources\nfrom cosyvoice.cli.cosyvoice import CosyVoice2\nimport cosyvoice.flow.flow_matching, cosyvoice.dataset.processor",
+        "post_install": "import io, os, site, zipfile, urllib.request\nsp = [p for p in site.getsitepackages() if p.endswith('site-packages')][0]\ndef grab(url, keep):\n    z = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(url).read()))\n    for n in z.namelist():\n        rel = n.split('/', 1)[1] if '/' in n else ''\n        for src, dst_root in keep:\n            if rel.startswith(src) and not n.endswith('/'):\n                tail = rel[len(src):]\n                dst = os.path.join(sp, dst_root, *tail.split('/')) if tail else os.path.join(sp, *dst_root.split('/'))\n                os.makedirs(os.path.dirname(dst), exist_ok=True)\n                if os.path.isdir(dst):\n                    import shutil; shutil.rmtree(dst)\n                open(dst, 'wb').write(z.read(n))\ngrab('https://github.com/FunAudioLLM/CosyVoice/archive/074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc.zip',\n     [('cosyvoice/', 'cosyvoice'), ('asset/zero_shot_prompt.wav', 'cosyvoice_assets/zero_shot_prompt.wav')])\ngrab('https://github.com/shivammehta25/Matcha-TTS/archive/dd9105b34bf2be2230f4aa1e4769fb586a3c824e.zip',\n     [('matcha/', 'matcha')])\nprint('ok')\n"
+      },
+      "weights": {
+        "repo": "FunAudioLLM/CosyVoice2-0.5B",
+        "revision": "eec1ae6c79877dbd9379285cf8789c9e0879293d",
+        "files": [
+          "campplus.onnx",
+          "config.json",
+          "configuration.json",
+          "cosyvoice2.yaml",
+          "flow.pt",
+          "hift.pt",
+          "llm.pt",
+          "speech_tokenizer_v2.onnx",
+          "CosyVoice-BlankEN/config.json",
+          "CosyVoice-BlankEN/generation_config.json",
+          "CosyVoice-BlankEN/merges.txt",
+          "CosyVoice-BlankEN/model.safetensors",
+          "CosyVoice-BlankEN/tokenizer_config.json",
+          "CosyVoice-BlankEN/vocab.json"
+        ]
+      },
+      "voices": [
+        {
+          "id": "prompt",
+          "name": "Packaged prompt voice",
+          "detail": "CosyVoice's zero-shot example speaker (Chinese female); use Voice Clone for others"
+        }
+      ],
+      "languages": [],
+      "cloning": true,
+      "emotion": "genuine",
+      "emphasis": "unsupported",
+      "max_chars": 200,
+      "gpu": true,
+      "approx_download_mb": 3100,
+      "notes": [
+        "Excited / calm / mystery are given to the model as spoken-style instructions (instruct mode) — genuine conditioning; adherence varies.",
+        "Zero-shot cloning from a reference clip; no transcript needed.",
+        "Best in Chinese and English; Japanese and Korean also supported.",
+        "Upstream source is installed from a pinned commit (it is not published on PyPI)."
+      ]
     }
   ]
 }
