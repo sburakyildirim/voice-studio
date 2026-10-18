@@ -6,6 +6,7 @@ use crate::catalog::Store;
 use crate::download::Cancel;
 use crate::engine::chatterbox::{Chatterbox, ChatterboxPaths, Variant};
 use crate::engine::kokoro::{Kokoro, KokoroPaths};
+use crate::engine::python::{self, PyEngine};
 use crate::engine::{plan_style, CloneMode, Engine, Run, SegmentRequest, StyleParams};
 use crate::markup::{self, Emotion, PauseKind, Span};
 use crate::profiles::ProfileStore;
@@ -236,12 +237,14 @@ pub struct Studio {
     pub settings: Settings,
     kokoro: Option<Kokoro>,
     chatterbox: Option<Chatterbox>,
+    /// The generic Python engine currently resident (one at a time).
+    python: Option<PyEngine>,
     pub last_used: Instant,
 }
 
 impl Studio {
     pub fn new(settings: Settings) -> Self {
-        Self { settings, kokoro: None, chatterbox: None, last_used: Instant::now() }
+        Self { settings, kokoro: None, chatterbox: None, python: None, last_used: Instant::now() }
     }
 
     pub fn store(&self) -> Store {
@@ -264,6 +267,11 @@ impl Studio {
                 v.push((c.id().into(), c.device()));
             }
         }
+        if let Some(p) = &self.python {
+            if p.is_loaded() {
+                v.push((p.id().into(), p.device()));
+            }
+        }
         v
     }
 
@@ -275,8 +283,12 @@ impl Studio {
         if let Some(c) = self.chatterbox.as_mut() {
             c.unload();
         }
+        if let Some(p) = self.python.as_mut() {
+            p.unload();
+        }
         self.kokoro = None;
         self.chatterbox = None;
+        self.python = None;
     }
 
     pub fn unload_if_idle(&mut self) -> bool {
@@ -289,7 +301,7 @@ impl Studio {
     }
 
     pub fn chatterbox_worker_pid(&self) -> Option<u32> {
-        self.chatterbox.as_ref().and_then(|c| c.worker_pid())
+        self.chatterbox.as_ref().and_then(|c| c.worker_pid()).or_else(|| self.python.as_ref().and_then(|p| p.worker_pid()))
     }
 
     fn engine(&mut self, id: &str, log: &mut dyn FnMut(String)) -> Result<&mut dyn Engine> {
@@ -313,6 +325,10 @@ impl Studio {
                         c.unload();
                     }
                 }
+                // GPU memory is limited: a resident generic GPU engine makes room.
+                if let Some(mut p) = self.python.take() {
+                    p.unload();
+                }
                 if self.chatterbox.is_none() {
                     let paths = ChatterboxPaths::resolve(&store, &self.settings.runtimes_dir(), self.settings.cache_dir().join("tmp"), variant)?;
                     self.chatterbox = Some(Chatterbox::new(paths));
@@ -321,12 +337,30 @@ impl Studio {
                 c.load(&device, log)?;
                 Ok(c)
             }
+            id if python::spec(id).is_some() => {
+                if self.python.as_ref().is_some_and(|p| p.id() != id) {
+                    if let Some(mut p) = self.python.take() {
+                        p.unload();
+                    }
+                }
+                if python::spec(id).is_some_and(|s| s.gpu) {
+                    if let Some(mut c) = self.chatterbox.take() {
+                        c.unload();
+                    }
+                }
+                if self.python.is_none() {
+                    self.python = Some(PyEngine::resolve(&store, &self.settings.runtimes_dir(), self.settings.cache_dir().join("tmp"), id)?);
+                }
+                let p = self.python.as_mut().unwrap();
+                p.load(&device, log)?;
+                Ok(p)
+            }
             other => bail!("unknown engine '{other}'"),
         }
     }
 
     pub fn peak_vram(&self) -> Option<u64> {
-        self.chatterbox.as_ref().and_then(|c| c.last_peak_vram)
+        self.chatterbox.as_ref().and_then(|c| c.last_peak_vram).or_else(|| self.python.as_ref().and_then(|p| p.last_peak_vram))
     }
 
     /// Render a script into a new project folder.
@@ -343,7 +377,13 @@ impl Studio {
         let parsed = markup::parse(script);
         let engine_id = opts.engine.as_str();
         let is_chatterbox = Variant::from_engine(engine_id).is_some();
-        let max_chars = if is_chatterbox { 220 } else { 320 };
+        let py_spec = python::spec(engine_id);
+        let max_chars = match &py_spec {
+            Some(s) => s.max_chars,
+            None if is_chatterbox => 220,
+            None => 320,
+        };
+        let can_clone = is_chatterbox || py_spec.as_ref().is_some_and(|s| s.cloning);
         let segments = plan(&parsed, &self.settings, max_chars);
         if segments.is_empty() {
             bail!("The script has no speakable text.");
@@ -360,7 +400,7 @@ impl Studio {
 
         // Voice / reference.
         let (reference, profile) = if opts.voice_clone {
-            if !is_chatterbox {
+            if !can_clone {
                 bail!("The selected engine ({engine_id}) does not support voice cloning.");
             }
             let pid = opts.profile_id.as_deref().context("Voice Clone is on but no voice profile is selected.")?;
@@ -378,10 +418,25 @@ impl Studio {
                 bail!("Unsupported language '{l}' for Chatterbox Multilingual.");
             }
             Some(l)
+        } else if let Some(sp) = py_spec.as_ref().filter(|s| !s.languages.is_empty()) {
+            let l = opts.language.clone().unwrap_or_else(|| sp.languages[0].clone()).to_lowercase();
+            if !sp.languages.contains(&l) {
+                bail!("Unsupported language '{l}' for {}.", sp.name);
+            }
+            Some(l)
         } else {
             None
         };
-        let base_voice = if engine_id == "kokoro" { opts.voice.clone() } else if profile.is_some() { "clone".to_string() } else { "builtin".to_string() };
+        let base_voice = if engine_id == "kokoro" {
+            opts.voice.clone()
+        } else if profile.is_some() {
+            "clone".to_string()
+        } else if let Some(sp) = py_spec.as_ref().filter(|s| !s.voices.is_empty()) {
+            // Use the requested voice when it belongs to this engine, else its first voice.
+            if sp.voices.iter().any(|v| v.id == opts.voice) { opts.voice.clone() } else { sp.voices[0].id.clone() }
+        } else {
+            "builtin".to_string()
+        };
         // The language is part of the voice key so cached segments never mix languages.
         let voice = match &language {
             Some(l) => format!("{base_voice}@{l}"),
@@ -420,7 +475,10 @@ impl Studio {
                 let _ = std::fs::remove_dir_all(&proj_dir);
                 bail!("cancelled");
             }
-            let mut style: StyleParams = plan_style(engine_id, seg.emotion, opts.emotion_control, opts.clone_mode);
+            let mut style: StyleParams = match &py_spec {
+                Some(sp) => python::plan_style(sp, seg.emotion, opts.emotion_control),
+                None => plan_style(engine_id, seg.emotion, opts.emotion_control, opts.clone_mode),
+            };
             style.speed *= opts.speed.clamp(0.5, 2.0);
             let key = cache_key(&fingerprint, &voice, &ref_sha, seed, &seg.runs, &style, sr);
             let cache_path = cache_dir.join(&key[..2]).join(format!("{key}.wav"));

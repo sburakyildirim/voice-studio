@@ -203,6 +203,132 @@ print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cud
         Ok(info)
     }
 
+    /// Install a generic engine runtime from its spec. The uv cache and managed Pythons are
+    /// shared by all runtimes (siblings of this folder), so on one drive PyTorch and other
+    /// large wheels are stored once and hard-linked into each venv.
+    pub fn install_spec(
+        &self,
+        uv: &Path,
+        spec: &crate::engine::python::RuntimeSpec,
+        label: &str,
+        cancel: &Cancel,
+        log: &mut dyn FnMut(String),
+    ) -> Result<RuntimeInfo> {
+        std::fs::create_dir_all(&self.dir)?;
+        let root = self.dir.parent().map(Path::to_path_buf).unwrap_or_else(|| self.dir.clone());
+        let cache = root.join("uv-cache");
+        let py_dir = root.join("python");
+        let venv = self.dir.join("venv");
+        let run = |args: &[String], log: &mut dyn FnMut(String)| -> Result<()> {
+            log(format!("uv {}", args.join(" ")));
+            let mut child = no_window(Command::new(uv).args(args))
+                .env("UV_CACHE_DIR", &cache)
+                .env("UV_PYTHON_INSTALL_DIR", &py_dir)
+                .env("UV_NO_CONFIG", "1")
+                .env("UV_LINK_MODE", "hardlink")
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .with_context(|| format!("start {}", uv.display()))?;
+            let stderr = child.stderr.take().unwrap();
+            let stdout = child.stdout.take().unwrap();
+            let (tx, rx) = std::sync::mpsc::channel::<String>();
+            let tx2 = tx.clone();
+            std::thread::spawn(move || BufReader::new(stderr).lines().map_while(Result::ok).for_each(|l| { let _ = tx.send(l); }));
+            std::thread::spawn(move || BufReader::new(stdout).lines().map_while(Result::ok).for_each(|l| { let _ = tx2.send(l); }));
+            let mut tail: Vec<String> = Vec::new();
+            loop {
+                while let Ok(l) = rx.try_recv() {
+                    tail.push(l.clone());
+                    if tail.len() > 12 {
+                        tail.remove(0);
+                    }
+                    log(l);
+                }
+                if cancel.is_cancelled() {
+                    let _ = child.kill();
+                    bail!("cancelled");
+                }
+                if let Some(st) = child.try_wait()? {
+                    while let Ok(l) = rx.try_recv() {
+                        tail.push(l.clone());
+                        log(l);
+                    }
+                    if !st.success() {
+                        bail!("uv failed ({st}):\n{}", tail.join("\n"));
+                    }
+                    return Ok(());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        };
+        let s = |x: &str| x.to_string();
+        if !self.python().exists() {
+            run(&[s("venv"), s("--python"), spec.python.clone(), s("--python-preference"), s("only-managed"), venv.to_string_lossy().to_string()], log)?;
+        }
+        let py = self.python().to_string_lossy().to_string();
+        if let Some(t) = &spec.torch {
+            let mut args = vec![s("pip"), s("install"), s("--python"), py.clone(), format!("torch=={t}")];
+            if spec.torchaudio {
+                args.push(format!("torchaudio=={t}"));
+            }
+            if let Some(idx) = Self::torch_index() {
+                args.push(s("--index-url"));
+                args.push(s(idx));
+            }
+            run(&args, log)?;
+        }
+        let mut args = vec![s("pip"), s("install"), s("--python"), py.clone()];
+        args.extend(spec.packages.iter().cloned());
+        args.extend(spec.pip_args.iter().cloned());
+        if let Some(t) = &spec.torch {
+            // Keep the machine-specific torch build that was just installed.
+            args.push(format!("torch=={t}"));
+            if let Some(idx) = Self::torch_index() {
+                args.push(s("--extra-index-url"));
+                args.push(s(idx));
+                args.push(s("--index-strategy"));
+                args.push(s("unsafe-best-match"));
+            }
+        }
+        run(&args, log)?;
+        log("Verifying runtime…".into());
+        let info = self.probe_generic(&spec.probe, label)?;
+        log(format!("Runtime ready: Python {}{}", info.python, if info.torch.is_empty() { String::new() } else { format!(", torch {}, CUDA {}", info.torch, info.cuda) }));
+        Ok(info)
+    }
+
+    /// Import check for a generic runtime; records runtime.json on success.
+    pub fn probe_generic(&self, probe: &str, label: &str) -> Result<RuntimeInfo> {
+        let py = self.python();
+        let code = format!(
+            "import json,sys\n{probe}\ntry:\n import torch;t=torch.__version__;c=torch.cuda.is_available();m=bool(getattr(torch.backends,'mps',None) and torch.backends.mps.is_available());d=torch.cuda.get_device_name(0) if c else None\nexcept Exception:\n t='';c=False;m=False;d=None\nprint(json.dumps({{'python':sys.version.split()[0],'torch':t,'cuda':c,'mps':m,'cuda_device':d}}))"
+        );
+        let out = no_window(Command::new(&py).arg("-c").arg(code))
+            .env("PYTHONIOENCODING", "utf-8")
+            .stdin(Stdio::null())
+            .output()
+            .context("run python")?;
+        if !out.status.success() {
+            bail!("{label} runtime check failed: {}", String::from_utf8_lossy(&out.stderr).lines().rev().take(3).collect::<Vec<_>>().join(" | "));
+        }
+        let line = String::from_utf8_lossy(&out.stdout).lines().last().unwrap_or("").to_string();
+        let v: serde_json::Value = serde_json::from_str(&line).context("parse probe output")?;
+        let info = RuntimeInfo {
+            schema_version: RUNTIME_SCHEMA,
+            python: v["python"].as_str().unwrap_or("").into(),
+            torch: v["torch"].as_str().unwrap_or("").into(),
+            cuda: v["cuda"].as_bool().unwrap_or(false),
+            mps: v["mps"].as_bool().unwrap_or(false),
+            cuda_device: v["cuda_device"].as_str().map(String::from),
+            chatterbox: label.into(),
+            installed_at: chrono::Utc::now(),
+        };
+        fsutil::atomic_write_json(&self.info_path(), &info)?;
+        Ok(info)
+    }
+
     pub fn remove(&self) -> Result<()> {
         if self.dir.exists() {
             std::fs::remove_dir_all(&self.dir).with_context(|| format!("remove {}", self.dir.display()))?;

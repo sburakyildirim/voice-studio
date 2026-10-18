@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "engines": [
+    {
+      "id": "piper",
+      "catalog_id": "piper",
+      "name": "Piper (fast · 10 languages · CPU)",
+      "adapter": "piper",
+      "license": "piper-tts: GPL-3.0; each voice keeps its dataset license (MODEL_CARD in the voice folder)",
+      "commercial": "Depends on the voice's dataset license — check MODEL_CARD before commercial use.",
+      "platforms": ["windows-x86_64", "macos-aarch64", "macos-x86_64", "linux-x86_64", "linux-aarch64"],
+      "runtime": { "python": "3.11", "torch": null, "packages": ["piper-tts==1.8.0"], "probe": "import piper" },
+      "weights": {
+        "repo": "rhasspy/piper-voices",
+        "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+        "dirs": [
+          "en/en_US/lessac/medium", "en/en_US/ryan/high", "en/en_US/amy/medium", "en/en_GB/alan/medium",
+          "en/en_GB/cori/high", "tr/tr_TR/dfki/medium", "de/de_DE/thorsten/medium", "fr/fr_FR/siwis/medium",
+          "es/es_ES/davefx/medium", "it/it_IT/paola/medium", "pt/pt_BR/faber/medium", "ru/ru_RU/irina/medium",
+          "nl/nl_NL/mls/medium"
+        ]
+      },
+      "voices": [
+        { "id": "en_US-lessac-medium", "name": "Lessac", "language": "en", "detail": "US English, female" },
+        { "id": "en_US-ryan-high", "name": "Ryan", "language": "en", "detail": "US English, male, high quality" },
+        { "id": "en_US-amy-medium", "name": "Amy", "language": "en", "detail": "US English, female" },
+        { "id": "en_GB-alan-medium", "name": "Alan", "language": "en", "detail": "British English, male" },
+        { "id": "en_GB-cori-high", "name": "Cori", "language": "en", "detail": "British English, female, high quality" },
+        { "id": "tr_TR-dfki-medium", "name": "DFKI", "language": "tr", "detail": "Turkish, male" },
+        { "id": "de_DE-thorsten-medium", "name": "Thorsten", "language": "de", "detail": "German, male" },
+        { "id": "fr_FR-siwis-medium", "name": "Siwis", "language": "fr", "detail": "French, female" },
+        { "id": "es_ES-davefx-medium", "name": "Davefx", "language": "es", "detail": "Spanish, male" },
+        { "id": "it_IT-paola-medium", "name": "Paola", "language": "it", "detail": "Italian, female" },
+        { "id": "pt_BR-faber-medium", "name": "Faber", "language": "pt", "detail": "Brazilian Portuguese, male" },
+        { "id": "ru_RU-irina-medium", "name": "Irina", "language": "ru", "detail": "Russian, female" },
+        { "id": "nl_NL-mls-medium", "name": "MLS", "language": "nl", "detail": "Dutch" }
+      ],
+      "languages": [],
+      "cloning": false,
+      "emotion": "approximate",
+      "emphasis": "unsupported",
+      "max_chars": 300,
+      "gpu": false,
+      "approx_download_mb": 930,
+      "notes": [
+        "Very fast on any CPU; good for drafts and many languages.",
+        "No emotion conditioning: excited / calm / mystery change speaking rate, level and pause length (approximated).",
+        "No voice cloning. The language follows the chosen voice."
+      ]
+    }
+  ]
+}

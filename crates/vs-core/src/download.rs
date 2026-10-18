@@ -75,8 +75,9 @@ pub fn download(
             Err(e) => return Err(e),
         }
     }
-    let got = fsutil::sha256_file(&part)?;
-    if !got.eq_ignore_ascii_case(sha256) {
+    // Files without a published hash (small configs pinned by revision) are size-checked only.
+    let got = if sha256.is_empty() { String::new() } else { fsutil::sha256_file(&part)? };
+    if !sha256.is_empty() && !got.eq_ignore_ascii_case(sha256) {
         let _ = fs::remove_file(&part);
         bail!("checksum mismatch for {url}: expected {sha256}, got {got}");
     }

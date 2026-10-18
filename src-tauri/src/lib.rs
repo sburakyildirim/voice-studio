@@ -268,6 +268,9 @@ pub fn run() {
             commands::diagnostics,
             commands::clear_cache,
             commands::read_script_file,
+            commands::engines,
+            commands::install_engine,
+            commands::remove_engine,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Voice Studio")

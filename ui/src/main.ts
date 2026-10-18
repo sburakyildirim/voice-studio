@@ -100,13 +100,20 @@ function renderEngineSelect() {
 }
 
 function renderLanguageSelect() {
-  const multilingual = engineId() === "chatterbox-mtl";
-  $("language-field").hidden = !multilingual;
+  const langs = engineInfo()?.languages ?? [];
+  $("language-field").hidden = langs.length === 0;
   const sel = $<HTMLSelectElement>("language");
-  if (!sel.options.length && status?.languages) {
-    sel.innerHTML = status.languages.map((l) => `<option value="${l.code}">${esc(l.name)} (${l.code})</option>`).join("");
+  sel.innerHTML = langs.map((l) => `<option value="${l.code}">${esc(l.name)}${l.name !== l.code ? ` (${l.code})` : ""}</option>`).join("");
+  if (langs.some((l) => l.code === settings.last_language)) sel.value = settings.last_language;
+}
+
+const voiceKey = (engine: string) => `vs.voice.${engine}`;
+function rememberedVoice(engine: string): string | null {
+  try {
+    return localStorage.getItem(voiceKey(engine));
+  } catch {
+    return null;
   }
-  sel.value = settings.last_language || "en";
 }
 
 function renderVoiceSelect() {
@@ -125,9 +132,15 @@ function renderVoiceSelect() {
       ? kokoroVoices.map((v) => `<option value="${v.id}">${esc(v.name)} — ${esc(v.accent)} ${esc(v.gender)} (${v.id})</option>`).join("")
       : `<option value="">Install Kokoro voices in Options › Models</option>`;
     if (kokoroVoices.some((v) => v.id === settings.last_voice)) sel.value = settings.last_voice;
+  } else if (engineInfo()?.voices?.length) {
+    const vs = engineInfo()!.voices!;
+    label.textContent = "Voice";
+    sel.innerHTML = vs.map((v) => `<option value="${v.id}">${esc(v.name)}${v.detail ? ` — ${esc(v.detail)}` : ""}</option>`).join("");
+    const r = rememberedVoice(engineId());
+    if (r && vs.some((v) => v.id === r)) sel.value = r;
   } else {
     label.textContent = "Voice";
-    sel.innerHTML = `<option value="builtin">Chatterbox built-in voice${engineId() === "chatterbox-mtl" ? " (English speaker — use Voice Clone for a native voice)" : ""}</option>`;
+    sel.innerHTML = `<option value="builtin">${engineId().startsWith("chatterbox") ? "Chatterbox built-in voice" : "Built-in voice"}${engineId() === "chatterbox-mtl" ? " (English speaker — use Voice Clone for a native voice)" : ""}</option>`;
   }
 }
 
@@ -179,6 +192,11 @@ $("voice").onchange = () => {
   const v = $<HTMLSelectElement>("voice").value;
   if (cloneOn()) settings.last_profile = v;
   else if (engineId() === "kokoro") settings.last_voice = v;
+  else {
+    try {
+      localStorage.setItem(voiceKey(engineId()), v);
+    } catch {}
+  }
   persistSettings();
 };
 $("t-clone").onchange = () => {
@@ -295,7 +313,7 @@ function options(): RenderOptions {
   return {
     title: $<HTMLInputElement>("a-title").value.trim(),
     engine: engineId(),
-    voice: cloneOn() || engineId() !== "kokoro" ? settings.last_voice : voice,
+    voice: cloneOn() ? settings.last_voice : engineId() === "kokoro" || engineInfo()?.voices?.length ? voice : settings.last_voice,
     emotion_control: emotionOn(),
     voice_clone: cloneOn(),
     profile_id: cloneOn() ? voice || null : null,
@@ -303,7 +321,7 @@ function options(): RenderOptions {
     seed: advanced ? settings.chatterbox_seed : null,
     speed: Number($<HTMLInputElement>("a-sp").value) || 1,
     export_mp3: null,
-    language: engineId() === "chatterbox-mtl" ? $<HTMLSelectElement>("language").value : null,
+    language: engineInfo()?.languages?.length ? $<HTMLSelectElement>("language").value : null,
   };
 }
 

@@ -10,6 +10,7 @@ const panel = (name: string) => document.querySelector<HTMLElement>(`[data-panel
 
 const progress: Record<string, { done: number; total: number; bps: number; file: string }> = {};
 let runtimeLog: string[] = [];
+const engineLogs: Record<string, string[]> = {};
 let onChange: () => void = () => {};
 
 export function initOptions(changed: () => void) {
@@ -35,12 +36,17 @@ export function initOptions(changed: () => void) {
     if (dlg.open) renderModels();
     onChange();
   });
-  listen<string>("runtime-log", (e) => {
-    runtimeLog.push(e.payload);
-    if (runtimeLog.length > 400) runtimeLog = runtimeLog.slice(-400);
-    const el = document.getElementById("rt-log");
+  listen<any>("runtime-log", (e) => {
+    const id: string = e.payload.id ?? "chatterbox-runtime";
+    const line: string = e.payload.line ?? String(e.payload);
+    const buf = (engineLogs[id] ??= []);
+    buf.push(line);
+    if (buf.length > 400) buf.splice(0, buf.length - 400);
+    if (id === "chatterbox-runtime") runtimeLog = buf;
+    const el = document.querySelector<HTMLElement>(`pre.log[data-log="${CSS.escape(id)}"]`) ?? (id === "chatterbox-runtime" ? document.getElementById("rt-log") : null);
     if (el) {
-      el.textContent = runtimeLog.join("\n");
+      el.hidden = false;
+      el.textContent = buf.join("\n");
       el.scrollTop = el.scrollHeight;
     }
   });
@@ -127,6 +133,11 @@ async function renderModels() {
       <pre class="log" id="rt-log" ${runtimeLog.length || rtBusy ? "" : "hidden"}>${esc(runtimeLog.join("\n"))}</pre>
     </div>
 
+    <div class="box"><h4>More engines (each in its own isolated runtime)</h4>
+      <p class="hint">One click installs the engine's Python environment and its pinned model files into the model/runtime folders. Large libraries such as PyTorch are shared between engines on the same drive.</p>
+      <div id="more-engines"><p class="hint">Loading…</p></div>
+    </div>
+
     <div class="box"><h4>Tools</h4>${by((p) => p.engine === "python")}</div>
 
     <div class="box"><h4>Evaluated models (${cat.models.models.length})</h4>
@@ -208,6 +219,68 @@ async function renderModels() {
     }
     renderModels();
     onChange();
+  });
+  updateProgressBars();
+  renderMoreEngines();
+}
+
+async function renderMoreEngines() {
+  const box = document.getElementById("more-engines");
+  if (!box) return;
+  let data: any;
+  try {
+    data = await api.engines();
+  } catch (e) {
+    box.innerHTML = `<p class="hint">${esc(e)}</p>`;
+    return;
+  }
+  box.innerHTML = data.engines
+    .map((x: any) => {
+      const sp = x.spec;
+      const key = `engine-${sp.id}`;
+      const busy = x.installing || !!progress[key];
+      const installed = x.runtime && x.weights;
+      const state = !x.supported
+        ? `<span class="badge unsupported">not supported on this computer</span>`
+        : installed
+          ? `<span class="badge ok">installed · ${fmtBytes(x.disk_size)}</span>`
+          : x.runtime || x.weights
+            ? `<span class="badge approximate">partly installed</span>`
+            : `<span class="badge">not installed</span>`;
+      const acts = !x.supported
+        ? ""
+        : installed
+          ? `<button data-eng="remove" data-id="${sp.id}" class="danger">Remove</button>`
+          : busy
+            ? `<button data-eng="cancel" data-id="${key}">Pause</button>`
+            : `<button data-eng="install" data-id="${sp.id}" class="primary">Install ~${sp.approx_download_mb >= 1000 ? (sp.approx_download_mb / 1000).toFixed(1) + " GB" : sp.approx_download_mb + " MB"}</button>`;
+      const caps = [sp.cloning ? "voice cloning" : "no cloning", `emotion: ${sp.emotion}`, sp.gpu ? "GPU recommended" : "CPU friendly"].join(" · ");
+      return `<div class="pkg"><div><div class="name">${esc(sp.name)} ${state}</div>
+        <div class="sub">${esc(caps)} · license ${esc(sp.license)}</div>
+        <div class="sub">${esc(sp.commercial)}${sp.unsupported_reason ? " · " + esc(sp.unsupported_reason) : ""}</div></div>
+        <div class="acts">${acts}</div>
+        <div class="mini-progress" data-progress="${key}" ${busy ? "" : "hidden"}><div class="progress"><div class="bar" style="height:100%;background:var(--accent);width:0"></div></div><div class="sub txt"></div></div>
+        <pre class="log" data-log="${key}" style="grid-column:1/3" ${engineLogs[key]?.length ? "" : "hidden"}>${esc((engineLogs[key] ?? []).join("\n"))}</pre></div>`;
+    })
+    .join("");
+  box.querySelectorAll<HTMLButtonElement>("button[data-eng]").forEach((b) => {
+    b.onclick = async () => {
+      const id = b.dataset.id!;
+      try {
+        if (b.dataset.eng === "install") {
+          engineLogs[`engine-${id}`] = ["Starting…"];
+          await api.installEngine(id);
+        } else if (b.dataset.eng === "cancel") await api.cancelDownload(id);
+        else if (b.dataset.eng === "remove") {
+          if (!(await ask(`Remove this engine's runtime and model files?`, { kind: "warning" }))) return;
+          await api.removeEngine(id);
+        }
+      } catch (e) {
+        toast(String(e), "error");
+      }
+      renderMoreEngines();
+      onChange();
+    };
   });
   updateProgressBars();
 }

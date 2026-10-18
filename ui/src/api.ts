@@ -62,6 +62,9 @@ export interface EngineInfo {
   missing: string[];
   caps: Caps;
   unsupported?: string | null;
+  languages?: { code: string; name: string }[];
+  voices?: { id: string; name: string; detail: string; language?: string | null }[];
+  generic?: boolean;
 }
 
 export interface EngineStatus {
@@ -187,6 +190,9 @@ export const api = {
   profileRename: (id: string, name: string) => invoke<void>("profile_rename", { id, name }),
   profileDelete: (id: string) => invoke<void>("profile_delete", { id }),
   diagnostics: () => invoke<any>("diagnostics"),
+  engines: () => invoke<any>("engines"),
+  installEngine: (id: string) => invoke<void>("install_engine", { id }),
+  removeEngine: (id: string) => invoke<void>("remove_engine", { id }),
   clearCache: () => invoke<number>("clear_cache"),
 };
 

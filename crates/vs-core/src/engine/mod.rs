@@ -2,6 +2,7 @@
 
 pub mod chatterbox;
 pub mod kokoro;
+pub mod python;
 
 use crate::audio::AudioBuf;
 use crate::download::Cancel;

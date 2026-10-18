@@ -111,7 +111,16 @@ impl ChatterboxPaths {
     }
 }
 
-struct Worker {
+/// How to start a Python worker process (shared by Chatterbox and the generic engines).
+pub(crate) struct WorkerLaunch {
+    pub python: PathBuf,
+    pub script: PathBuf,
+    pub cwd: PathBuf,
+    pub log_file: Option<PathBuf>,
+    pub label: String,
+}
+
+pub(crate) struct Worker {
     child: Child,
     stdin: ChildStdin,
     rx: Receiver<String>,
@@ -125,11 +134,21 @@ impl Worker {
     fn spawn(paths: &ChatterboxPaths) -> Result<Self> {
         let rt = PyRuntime { dir: paths.runtime.clone() };
         let script = rt.worker_script()?;
-        let mut cmd = Command::new(rt.python());
+        Self::spawn_with(&WorkerLaunch {
+            python: rt.python(),
+            script,
+            cwd: paths.runtime.clone(),
+            log_file: paths.log_file.clone(),
+            label: "Chatterbox".into(),
+        })
+    }
+
+    pub(crate) fn spawn_with(launch: &WorkerLaunch) -> Result<Self> {
+        let mut cmd = Command::new(&launch.python);
         pyenv::no_window(&mut cmd)
             .arg("-u")
-            .arg(&script)
-            .current_dir(&paths.runtime)
+            .arg(&launch.script)
+            .current_dir(&launch.cwd)
             .env("PYTHONIOENCODING", "utf-8")
             .env("PYTHONUNBUFFERED", "1")
             .env("HF_HUB_OFFLINE", "1")
@@ -140,12 +159,12 @@ impl Worker {
             .env("PYTORCH_ENABLE_MPS_FALLBACK", "1")
             // librosa's numba kernels are JIT-compiled on first import; keep the cache in a
             // stable writable place so it survives and is reused across runs.
-            .env("NUMBA_CACHE_DIR", paths.runtime.join("numba-cache"))
+            .env("NUMBA_CACHE_DIR", launch.cwd.join("numba-cache"))
             .env("VS_PARENT_PID", std::process::id().to_string())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let mut child = cmd.spawn().context("start Chatterbox worker")?;
+        let mut child = cmd.spawn().with_context(|| format!("start {} worker", launch.label))?;
         #[cfg(windows)]
         let job = win_job::Job::assign(&child).map_err(|e| tracing::warn!("job object: {e}")).ok();
         let stdin = child.stdin.take().unwrap();
@@ -161,7 +180,7 @@ impl Worker {
         });
         let tail = Arc::new(Mutex::new(VecDeque::new()));
         let t2 = tail.clone();
-        let mut log = paths.log_file.as_ref().and_then(|p| {
+        let mut log = launch.log_file.as_ref().and_then(|p| {
             let _ = std::fs::create_dir_all(p.parent()?);
             std::fs::OpenOptions::new().create(true).append(true).open(p).ok()
         });
@@ -236,12 +255,16 @@ impl Worker {
         }
     }
 
-    fn call(&mut self, req: Value, timeout: Duration, cancel: &Cancel) -> Result<Value> {
+    pub(crate) fn pid(&self) -> u32 {
+        self.child.id()
+    }
+
+    pub(crate) fn call(&mut self, req: Value, timeout: Duration, cancel: &Cancel) -> Result<Value> {
         self.call_with_status(req, timeout, cancel, &mut |_| {})
     }
 
     /// Like `call`, forwarding `{"event":"status"}` lines (e.g. load stages) to `on_status`.
-    fn call_with_status(&mut self, mut req: Value, timeout: Duration, cancel: &Cancel, on_status: &mut dyn FnMut(String)) -> Result<Value> {
+    pub(crate) fn call_with_status(&mut self, mut req: Value, timeout: Duration, cancel: &Cancel, on_status: &mut dyn FnMut(String)) -> Result<Value> {
         let id = self.next_id;
         self.next_id += 1;
         req["id"] = json!(id);
@@ -271,7 +294,7 @@ impl Worker {
         }
     }
 
-    fn kill(&mut self) {
+    pub(crate) fn kill(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }

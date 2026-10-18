@@ -22,6 +22,7 @@ USAGE:
   vscli verify <package-id>              Re-hash an installed package
   vscli remove <package-id>              Delete an installed package
   vscli runtime <install|probe|remove>   Manage the isolated Chatterbox Python runtime
+  vscli engine <list|install ID|remove ID>  Extra engines (Piper, XTTS, F5, …) in isolated runtimes
   vscli voices                           List Kokoro voices
   vscli profile add <name> <audio> [--start S] [--end S] --consent
   vscli profiles                         List voice profiles
@@ -157,6 +158,48 @@ fn run() -> Result<()> {
                     println!("removed");
                 }
                 _ => bail!("usage: vscli runtime <install|probe|remove>"),
+            }
+        }
+        "engine" => {
+            use vs_core::engine::python;
+            let runtimes = settings.runtimes_dir();
+            match args.0.first().map(|s| s.as_str()) {
+                Some("list") | None => {
+                    for e in python::specs() {
+                        let st = python::install_state(&e, &store, &runtimes);
+                        let state = if !e.supported_here() {
+                            "not supported here".to_string()
+                        } else if st.runtime && st.weights {
+                            "installed".into()
+                        } else {
+                            format!("runtime {} · weights {}", if st.runtime { "ok" } else { "missing" }, if st.weights { "ok" } else { "missing" })
+                        };
+                        println!("  {:<14} {:<48} ~{:>5} MB  {}", e.id, e.name, e.approx_download_mb, state);
+                    }
+                }
+                Some("install") => {
+                    let id = args.0.get(1).context("engine id required")?.clone();
+                    let spec = python::spec(&id).with_context(|| format!("unknown engine {id}"))?;
+                    let uv = match pyenv::find_uv(&store) {
+                        Some(u) => u,
+                        None => {
+                            let p = catalog::package(&catalog::uv_package_id()).context("no uv for this platform")?;
+                            store.install(&p, &Cancel::new(), |f, pr| bar(pr.done, pr.total, pr.bytes_per_sec, f))?;
+                            pyenv::find_uv(&store).context("uv missing after install")?
+                        }
+                    };
+                    python::install(&spec, &store, &runtimes, &uv, &Cancel::new(), &mut |l| eprintln!("  {l}"), &mut |f, pr| {
+                        bar(pr.done, pr.total, pr.bytes_per_sec, f)
+                    })?;
+                    eprintln!();
+                }
+                Some("remove") => {
+                    let id = args.0.get(1).context("engine id required")?.clone();
+                    let spec = python::spec(&id).with_context(|| format!("unknown engine {id}"))?;
+                    python::remove(&spec, &store, &runtimes)?;
+                    println!("removed {id}");
+                }
+                _ => bail!("usage: vscli engine <list|install ID|remove ID>"),
             }
         }
         "voices" => {

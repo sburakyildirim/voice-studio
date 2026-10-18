@@ -126,14 +126,22 @@ pub struct SegmentPreview {
 pub fn parse_script(st: State<AppState>, script: String, engine_id: String, emotion_control: bool, clone_mode: Option<CloneMode>) -> Value {
     let s = settings(&st);
     let parsed = markup::parse(&script);
-    let max = if engine_id.starts_with("chatterbox") { 220 } else { 320 };
+    let py_spec = engine::python::spec(&engine_id);
+    let max = match &py_spec {
+        Some(sp) => sp.max_chars,
+        None if engine_id.starts_with("chatterbox") => 220,
+        None => 320,
+    };
     let segs = render::plan(&parsed, &s, max);
     let mode = clone_mode.unwrap_or_default();
     let preview: Vec<SegmentPreview> = segs
         .iter()
         .enumerate()
         .map(|(i, g)| {
-            let style = engine::plan_style(&engine_id, g.emotion, emotion_control, mode);
+            let style = match &py_spec {
+                Some(sp) => engine::python::plan_style(sp, g.emotion, emotion_control),
+                None => engine::plan_style(&engine_id, g.emotion, emotion_control, mode),
+            };
             SegmentPreview {
                 index: i + 1,
                 text: g.text(),
@@ -274,7 +282,7 @@ pub fn install_runtime(app: AppHandle, st: State<AppState>) -> CmdResult<()> {
     std::thread::spawn(move || {
         let store = Store::new(&s.models_dir);
         let mut log = |l: String| {
-            let _ = app.emit("runtime-log", l);
+            let _ = app.emit("runtime-log", json!({"id": "chatterbox-runtime", "line": l}));
         };
         let r = (|| -> anyhow::Result<()> {
             let uv = match pyenv::find_uv(&store) {
@@ -368,6 +376,11 @@ fn engine_status_blocking(s: Settings, loaded: Vec<(String, String)>, busy: Opti
     });
     for v in Variant::ALL {
         let r = ChatterboxPaths::resolve(&store, &s.runtimes_dir(), s.cache_dir().join("tmp"), v);
+        let languages: Vec<Value> = if v == Variant::Multilingual {
+            engine::chatterbox::MTL_LANGUAGES.iter().map(|(c, n)| json!({"code": c, "name": n})).collect()
+        } else {
+            vec![]
+        };
         status["engines"].as_array_mut().unwrap().push(json!({
             "id": v.engine_id(),
             "name": v.display_name(),
@@ -375,9 +388,112 @@ fn engine_status_blocking(s: Settings, loaded: Vec<(String, String)>, busy: Opti
             "missing": missing(&r),
             "caps": engine::chatterbox::caps_for(v),
             "unsupported": pyenv::chatterbox_unsupported_reason(),
+            "languages": languages,
+            "voices": [],
+        }));
+    }
+    for sp in engine::python::specs() {
+        let st = engine::python::install_state(&sp, &store, &s.runtimes_dir());
+        let ready = sp.supported_here() && st.runtime && st.weights;
+        status["engines"].as_array_mut().unwrap().push(json!({
+            "id": sp.id,
+            "name": sp.name,
+            "ready": ready,
+            "missing": if ready || !sp.supported_here() { vec![] } else { vec![sp.package_id()] },
+            "caps": sp.capabilities(),
+            "unsupported": if sp.supported_here() { None } else { Some(sp.unsupported_reason.clone().unwrap_or_else(|| format!("Not available for {}.", catalog::platform_id()))) },
+            "languages": sp.languages.iter().map(|c| json!({"code": c, "name": c})).collect::<Vec<_>>(),
+            "voices": sp.voices.iter().map(|v| json!({"id": v.id, "name": v.name, "detail": v.detail, "language": v.language})).collect::<Vec<_>>(),
+            "generic": true,
         }));
     }
     status
+}
+
+/// Extra engines for Options › Models: spec + install state.
+#[tauri::command]
+pub async fn engines(st: State<'_, AppState>) -> CmdResult<Value> {
+    let s = settings(&st);
+    let installing: Vec<String> = st.downloads.lock().unwrap().keys().cloned().collect();
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = Store::new(&s.models_dir);
+        let list: Vec<Value> = engine::python::specs()
+            .into_iter()
+            .map(|sp| {
+                let stt = engine::python::install_state(&sp, &store, &s.runtimes_dir());
+                let rt = sp.runtime(&s.runtimes_dir());
+                json!({
+                    "spec": sp,
+                    "supported": sp.supported_here(),
+                    "runtime": stt.runtime,
+                    "weights": stt.weights,
+                    "installing": installing.contains(&sp.package_id()),
+                    "disk_size": fsutil::dir_size(&rt.dir) + fsutil::dir_size(&store.dir(&sp.package_id())),
+                })
+            })
+            .collect();
+        json!({"engines": list, "platform": catalog::platform_id()})
+    })
+    .await
+    .map_err(err)
+}
+
+/// Install runtime + weights for a generic engine in the background. Progress is reported
+/// with the same `download-progress` / `runtime-log` / `download-done` events.
+#[tauri::command]
+pub fn install_engine(app: AppHandle, st: State<AppState>, id: String) -> CmdResult<()> {
+    let s = settings(&st);
+    let spec = engine::python::spec(&id).ok_or("unknown engine")?;
+    let key = spec.package_id();
+    let cancel = Cancel::new();
+    {
+        let mut d = st.downloads.lock().unwrap();
+        if d.contains_key(&key) {
+            return Err("already installing".into());
+        }
+        d.insert(key.clone(), cancel.clone());
+    }
+    std::thread::spawn(move || {
+        let store = Store::new(&s.models_dir);
+        let r = (|| -> anyhow::Result<()> {
+            let uv = match pyenv::find_uv(&store) {
+                Some(u) => u,
+                None => {
+                    let p = catalog::package(&catalog::uv_package_id()).ok_or_else(|| anyhow::anyhow!("uv is not available for this platform"))?;
+                    store.install(&p, &cancel, |_, _| {})?;
+                    pyenv::find_uv(&store).ok_or_else(|| anyhow::anyhow!("uv missing after install"))?
+                }
+            };
+            let app2 = app.clone();
+            let key2 = key.clone();
+            engine::python::install(
+                &spec,
+                &store,
+                &s.runtimes_dir(),
+                &uv,
+                &cancel,
+                &mut |l| {
+                    let _ = app.emit("runtime-log", json!({"id": key, "line": l}));
+                },
+                &mut |file, pr| {
+                    let _ = app2.emit("download-progress", json!({"id": key2, "file": file, "done": pr.done, "total": pr.total, "bps": pr.bytes_per_sec}));
+                },
+            )
+        })();
+        let st = tauri::Manager::state::<AppState>(&app);
+        st.downloads.lock().unwrap().remove(&key);
+        let _ = app.emit("download-done", json!({"id": key, "ok": r.is_ok(), "cancelled": cancel.is_cancelled(), "error": r.err().map(|e| format!("{e:#}"))}));
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_engine(st: State<'_, AppState>, id: String) -> CmdResult<()> {
+    let _ = st.tx.lock().unwrap().send(WorkerMsg::Unload);
+    std::thread::sleep(std::time::Duration::from_millis(1500));
+    let s = settings(&st);
+    let spec = engine::python::spec(&id).ok_or("unknown engine")?;
+    engine::python::remove(&spec, &Store::new(&s.models_dir), &s.runtimes_dir()).map_err(aerr)
 }
 
 #[tauri::command]

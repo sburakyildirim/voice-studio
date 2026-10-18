@@ -183,7 +183,9 @@ impl Store {
             let fname = fsutil::sanitize_file_name(&f.dest);
             let tmp = dl.join(&fname);
             let final_path = fsutil::safe_join(&dir, &f.dest)?;
-            let already = f.extract.is_empty() && fs_len(&final_path) == Some(f.size) && fsutil::sha256_file(&final_path)? == f.sha256;
+            let already = f.extract.is_empty()
+                && fs_len(&final_path) == Some(f.size)
+                && (f.sha256.is_empty() || fsutil::sha256_file(&final_path)? == f.sha256);
             if !already {
                 download::download(&f.url, &tmp, f.size, &f.sha256, cancel, |pr| {
                     on_progress(&f.dest, Progress { done: base + pr.done, total, bytes_per_sec: pr.bytes_per_sec })
@@ -230,6 +232,12 @@ impl Store {
         let mut bad = Vec::new();
         for f in &m.files {
             let p = dir.join(&f.path);
+            if f.sha256.is_empty() {
+                if fs_len(&p) != Some(f.size) {
+                    bad.push(f.path.clone());
+                }
+                continue;
+            }
             match fsutil::sha256_file(&p) {
                 Ok(h) if h == f.sha256 => {}
                 _ => bad.push(f.path.clone()),
